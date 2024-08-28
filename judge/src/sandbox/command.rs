@@ -1,5 +1,6 @@
 use std::{
     ffi::{OsStr, OsString},
+    fmt,
     path::{Path, PathBuf},
     process::ExitStatus,
     str,
@@ -26,14 +27,6 @@ impl Command {
         }
     }
 
-    pub fn executable(&self) -> &Path {
-        &self.executable
-    }
-
-    pub fn args(&self) -> &[OsString] {
-        &self.args
-    }
-
     pub fn create(&self) -> TokioCommand {
         let mut command = TokioCommand::new(&self.executable);
         command.args(&self.args);
@@ -41,15 +34,40 @@ impl Command {
     }
 }
 
+impl fmt::Display for Command {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} {}",
+            self.executable.display(),
+            Vec::from_iter(self.args.iter().map(|s| s.to_string_lossy())).join(", ")
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Output {
-    pub(super) exit_status: ExitStatus,
-    pub(super) stdout: Vec<u8>,
-    pub(super) stderr: Vec<u8>,
-    pub(super) resource_usage: ResourceUsage,
+    exit_status: ExitStatus,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    resource_usage: ResourceUsage,
 }
 
 impl Output {
+    pub fn new(
+        exit_status: ExitStatus,
+        stdout: Vec<u8>,
+        stderr: Vec<u8>,
+        resource_usage: ResourceUsage,
+    ) -> Self {
+        Self {
+            exit_status,
+            stdout,
+            stderr,
+            resource_usage,
+        }
+    }
+
     pub fn exit_status(&self) -> ExitStatus {
         self.exit_status
     }

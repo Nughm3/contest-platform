@@ -1,90 +1,88 @@
-use std::{collections::HashMap, env, net::SocketAddr, path::PathBuf};
+use std::{collections::HashMap, ffi::OsStr, net::SocketAddr, path::Path};
 
 use axum::{routing::post, Router};
 use color_eyre::eyre::WrapErr;
+use config::Config;
+use contest::Contest;
 use once_cell::sync::OnceCell;
-use sandbox::{Command, ResourceLimits};
-use tokio::net::TcpListener;
+use tokio::{fs, net::TcpListener};
 use tower_http::trace::TraceLayer;
-use tracing_error::ErrorLayer;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use tracing_tree::HierarchicalLayer;
 
-mod loader;
+mod config;
+mod contest;
 mod sandbox;
 mod submit;
 
 static CONFIG: OnceCell<Config> = OnceCell::new();
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Config {
-    contests: HashMap<String, Contest>,
-    resource_limits_build: Option<ResourceLimits>,
-    resource_limits_run: ResourceLimits,
-    languages: HashMap<String, Language>,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct Contest {
-    tasks: Vec<Task>,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct Task {
-    subtasks: Vec<Subtask>,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct Subtask {
-    tests: Vec<Test>,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct Test {
-    input: String,
-    output: String,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct Language {
-    filename: String,
-    build: Option<Command>,
-    run: Command,
-}
+static CONTESTS: OnceCell<HashMap<String, Contest>> = OnceCell::new();
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
+    dotenvy::dotenv().ok();
     color_eyre::install()?;
-
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
-        .with(HierarchicalLayer::new(2))
-        .with(ErrorLayer::default())
-        .init();
+        .with(HierarchicalLayer::default())
+        .try_init()
+        .wrap_err("failed to initialize logging")?;
 
     let config = {
-        let dir = if let Some(dir) = env::args().nth(1) {
-            PathBuf::from(dir)
-        } else {
-            env::current_dir()?
-        };
-
-        tokio::task::spawn_blocking(move || loader::load(dir))
+        let input = fs::read_to_string("config.toml")
             .await
-            .wrap_err("failed to load contests and judge configuration")??
+            .wrap_err("failed to read config.toml")?;
+
+        let config = Config::load(&input).wrap_err("failed to load config.toml")?;
+
+        tracing::info!("loaded config.toml");
+        config
     };
 
     CONFIG.set(config).unwrap();
 
+    let contests = {
+        let mut contests = HashMap::new();
+
+        let mut read_dir = fs::read_dir("contests")
+            .await
+            .wrap_err("failed to scan contests directory")?;
+        while let Some(entry) = read_dir.next_entry().await? {
+            let path = entry.path();
+            if path.extension().and_then(OsStr::to_str) == Some("json") {
+                let input = fs::read_to_string(&path).await?;
+                let contest = Contest::load(&input)?;
+                tracing::info!("loaded contest {} ({})", contest.name, path.display());
+                contests.insert(
+                    path.file_stem()
+                        .unwrap()
+                        .to_str()
+                        .expect("non UTF-8 filename")
+                        .to_owned(),
+                    contest,
+                );
+            }
+        }
+
+        contests
+    };
+
+    CONTESTS.set(contests).unwrap();
+
+    if !Path::new("submissions").is_dir() {
+        tracing::warn!("submissions directory not found, attempting to create it");
+        fs::create_dir("submissions").await?;
+    }
+
     let app = Router::new()
-        .route("/submit/:contest/:task", post(submit::submit))
+        .route("/:contest/:task", post(submit::handler))
         .layer(TraceLayer::new_for_http());
 
-    let listener = {
-        let addr = SocketAddr::from(([0; 4], 8000));
-        tracing::info!("listening on {addr}");
-        TcpListener::bind(addr).await?
-    };
+    let addr = SocketAddr::from(([0; 4], 8000));
+    let listener = TcpListener::bind(addr)
+        .await
+        .wrap_err("failed to bind to TCP port")?;
+    tracing::info!("listening on {addr}");
 
     let quit_signal = async {
         tokio::signal::ctrl_c().await.ok();

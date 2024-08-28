@@ -27,7 +27,7 @@ function renderMarkdown(src) {
 const contestPage = await fs.readFile(path.join(input, 'contest.md'), { encoding: 'utf8' });
 const { frontmatter, html } = renderMarkdown(contestPage);
 let contest = {
-	config: frontmatter,
+	...frontmatter,
 	page: html,
 	tasks: []
 };
@@ -60,17 +60,17 @@ for (const task of taskEntries.sort().filter((e) => e.isDirectory())) {
 				}
 			}
 
-			subtasks.push(tests);
+			subtasks.push({ tests });
 		}
 	}
 
 	contest.tasks.push({
-		config: frontmatter,
+		...frontmatter,
 		page: html,
 		subtasks
 	});
 }
 
-const output = path.parse(input).name + '.contest.json';
+const output = path.parse(input).name + '.json';
 await fs.writeFile(output, JSON.stringify(contest));
 console.log(`output written to ${output}`);

@@ -1,343 +1,195 @@
-use std::{convert::Infallible, io::ErrorKind, sync::Arc};
+use std::convert::Infallible;
 
 use axum::{
-    extract::Path,
+    extract::{multipart::MultipartError, Multipart, Path, Query},
     http::StatusCode,
-    response::sse::{Event, KeepAlive, Sse},
+    response::{
+        sse::{Event, KeepAlive},
+        IntoResponse, Response, Sse,
+    },
 };
-use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
-use sandbox::SandboxConfig;
-use serde::Serialize;
-use tokio::{
-    fs,
-    sync::{mpsc, watch},
-    task::JoinSet,
-};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use tokio::{fs, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
+use uuid::Uuid;
 
-use super::*;
-use crate::sandbox::{ResourceUsage, Sandbox};
+use crate::{
+    sandbox::{self, Profile},
+    CONFIG, CONTESTS,
+};
 
-/// Number of failed tests at which the subtask is skipped
-const SKIP_COUNT: u8 = 3;
-
-#[derive(Debug, Clone, Serialize)]
-pub enum Message {
-    Queued,
-    Building,
-    Judging {
-        verdict: Verdict,
-        total: u32,
-    },
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize)]
+enum Message {
+    /// Indicates that the submission has been received
+    Queued { total: u32, uuid: Uuid },
+    /// Indicates that the compile step has been started (optional)
+    Compiling,
+    /// Provides compiler warnings and errors when given (optional)
+    CompilerOutput { exit_code: i32, stderr: String },
+    /// Judging status
+    Judging { verdict: Verdict },
+    /// Tests were skipped due to exceeding resource usage
+    Skipped { estimated_count: u32 },
+    /// Judging completed successfully
     Done {
-        report: TaskReport,
-        compile_stderr: String,
+        task: Verdict,
+        subtasks: Vec<Verdict>,
+        tests: Vec<Vec<Verdict>>,
     },
-    Error(String),
 }
 
-impl From<Message> for Result<Event, Infallible> {
-    fn from(message: Message) -> Self {
-        Ok(Event::default().json_data(message).unwrap())
+impl Message {
+    async fn send_to(self, tx: &mpsc::Sender<Result<Event, Infallible>>) {
+        tx.send(Ok(Event::default().json_data(self).unwrap()))
+            .await
+            .expect("failed to send message");
     }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct TaskReport {
-    verdict: Verdict,
-    subtasks: Vec<SubtaskReport>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SubtaskReport {
-    verdict: Verdict,
-    tests: Vec<TestReport>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize)]
-pub struct TestReport {
-    verdict: Verdict,
-    resource_usage: ResourceUsage,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-pub enum Verdict {
+enum Verdict {
     CompileError,
     RuntimeError,
-    WrongAnswer,
-    TimeLimitExceeded,
     MemoryLimitExceeded,
-    Skipped,
+    TimeLimitExceeded,
+    WrongAnswer,
     Accepted,
 }
 
-#[derive(Debug, TryFromMultipart)]
-pub struct Submission {
+#[derive(Debug, Error)]
+pub enum SubmitError {
+    #[error("could not find contest: {0}")]
+    ContestNotFound(String),
+    #[error("could not find task: {0}")]
+    TaskNotFound(usize),
+    #[error("unsupported language: {0}")]
+    UnsupportedLanguage(String),
+    #[error("could not read submission code: {0}")]
+    InvalidCode(#[from] MultipartError),
+    #[error("no code submitted")]
+    NoCode,
+}
+
+impl IntoResponse for SubmitError {
+    fn into_response(self) -> Response {
+        (StatusCode::BAD_REQUEST, self.to_string()).into_response()
+    }
+}
+
+#[derive(Deserialize)]
+pub struct LanguageQuery {
     language: String,
-    code: String,
 }
 
 type Stream = Sse<ReceiverStream<Result<Event, Infallible>>>;
-type RequestError = (StatusCode, String);
 
-#[tracing::instrument]
-pub async fn submit(
-    Path((contest, task)): Path<(String, usize)>,
-    TypedMultipart(Submission { language, code }): TypedMultipart<Submission>,
-) -> Result<Stream, RequestError> {
-    tracing::info!("submission to {contest}/{task} received");
-    let config = CONFIG.get().unwrap();
+pub async fn handler(
+    Path((contest_name, task_index)): Path<(String, usize)>,
+    Query(LanguageQuery {
+        language: language_name,
+    }): Query<LanguageQuery>,
+    mut multipart: Multipart,
+) -> Result<Stream, SubmitError> {
+    let contest = CONTESTS
+        .get()
+        .unwrap()
+        .get(&contest_name)
+        .ok_or_else(|| SubmitError::ContestNotFound(contest_name.clone()))?;
 
-    let task = config
-        .contests
-        .get(&contest)
-        .ok_or((StatusCode::NOT_FOUND, String::from("contest not found")))?
+    let task = contest
         .tasks
-        .get(task - 1)
-        .ok_or((StatusCode::NOT_FOUND, String::from("task not found")))?;
+        .get(task_index)
+        .ok_or_else(|| SubmitError::TaskNotFound(task_index))?;
 
-    let language = config.languages.get(&language).ok_or((
-        StatusCode::BAD_REQUEST,
-        String::from("unsupported language"),
-    ))?;
+    let language = CONFIG
+        .get()
+        .unwrap()
+        .languages
+        .get(&language_name)
+        .ok_or_else(|| SubmitError::UnsupportedLanguage(language_name))?;
 
-    if task.subtasks.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            String::from("task does not require code submission"),
-        ));
-    }
+    let code = multipart
+        .next_field()
+        .await?
+        .ok_or(SubmitError::NoCode)?
+        .text()
+        .await?;
+
+    tracing::info!("submission received for {contest_name}/{}", task_index + 1);
 
     let (tx, rx) = mpsc::channel(64);
 
-    tracing::debug!("submission validated, queuing submission");
-    tx.send(Message::Queued.into()).await.unwrap();
-
-    let sandbox =
-        Arc::new(Sandbox::new().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?);
+    let uuid = Uuid::new_v4();
+    Message::Queued {
+        total: task.subtasks.iter().map(|s| s.tests.len() as u32).sum(),
+        uuid,
+    }
+    .send_to(&tx)
+    .await;
 
     tokio::spawn(async move {
-        let result = Judge {
-            tx,
-            sandbox,
-            task,
-            language,
-            code,
-            resource_limits_build: config.resource_limits_build,
-            resource_limits_run: config.resource_limits_run,
-        }
-        .submit()
-        .await;
+        let submission_path = std::path::Path::new("submissions").join(uuid.to_string());
+        fs::create_dir(&submission_path).await?;
+        tracing::trace!(
+            "created submission directory at {}",
+            submission_path.display()
+        );
 
-        if let Err(e) = result {
-            tracing::error!("failed to judge submission: {e:?}");
+        if let Some(build_command) = &language.build {
+            Message::Compiling.send_to(&tx).await;
+
+            let code_path = submission_path.join(&language.filename);
+            fs::write(&code_path, code).await?;
+            tracing::trace!("code written to {}", code_path.display());
+
+            let output = sandbox::run(submission_path, build_command, &[], Profile::Build).await?;
+            let status = output.exit_status();
+            let exit_code = status.code().unwrap_or(-1);
+            if !status.success() {
+                if exit_code != -1 {
+                    tracing::error!("build failed with exit code: {exit_code}");
+                } else {
+                    tracing::error!("build failed, terminated by signal");
+                }
+
+                Message::CompilerOutput {
+                    exit_code,
+                    stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
+                }
+                .send_to(&tx)
+                .await;
+
+                Message::Done {
+                    task: Verdict::CompileError,
+                    subtasks: vec![Verdict::CompileError; task.subtasks.len()],
+                    tests: task
+                        .subtasks
+                        .iter()
+                        .map(|s| vec![Verdict::CompileError; s.tests.len()])
+                        .collect(),
+                }
+                .send_to(&tx)
+                .await;
+
+                return Ok(());
+            } else if !output.stderr().is_empty() {
+                tracing::warn!("compiler warnings emitted");
+                Message::CompilerOutput {
+                    exit_code,
+                    stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
+                }
+                .send_to(&tx)
+                .await;
+            } else {
+                tracing::trace!("build succeeded");
+            }
+        } else {
+            tracing::trace!("skipping build phase");
         }
+
+        Ok::<_, tokio::io::Error>(())
     });
 
     Ok(Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default()))
-}
-
-struct Judge {
-    tx: mpsc::Sender<Result<Event, Infallible>>,
-    sandbox: Arc<Sandbox>,
-    task: &'static Task,
-    language: &'static Language,
-    code: String,
-    resource_limits_build: Option<ResourceLimits>,
-    resource_limits_run: ResourceLimits,
-}
-
-impl Judge {
-    #[tracing::instrument(skip(self))]
-    async fn submit(mut self) -> color_eyre::Result<()> {
-        let (compile_ok, compile_stderr) = self.build().await?;
-        if !compile_ok {
-            self.tx
-                .send(
-                    Message::Done {
-                        report: TaskReport {
-                            verdict: Verdict::CompileError,
-                            subtasks: Vec::new(),
-                        },
-                        compile_stderr,
-                    }
-                    .into(),
-                )
-                .await?;
-
-            return Ok(());
-        }
-
-        let total = self
-            .task
-            .subtasks
-            .iter()
-            .map(|subtask| subtask.tests.len() as u32)
-            .sum();
-        tracing::debug!("starting judging of {total} tests");
-
-        let mut report = TaskReport {
-            verdict: Verdict::Accepted,
-            subtasks: vec![
-                SubtaskReport {
-                    verdict: Verdict::Accepted,
-                    tests: vec![],
-                };
-                self.task.subtasks.len()
-            ],
-        };
-
-        let mut subtask_set = JoinSet::new();
-        for (subtask_idx, subtask) in self.task.subtasks.iter().enumerate() {
-            let mut subtask_report = SubtaskReport {
-                verdict: Verdict::Accepted,
-                tests: vec![
-                    TestReport {
-                        verdict: Verdict::Skipped,
-                        resource_usage: ResourceUsage::default()
-                    };
-                    subtask.tests.len()
-                ],
-            };
-
-            let config = SandboxConfig {
-                resource_limits: Some(self.resource_limits_run),
-                seccomp: true,
-                landlock: true,
-            };
-
-            let (tx, sandbox, language) =
-                (self.tx.clone(), self.sandbox.clone(), self.language.clone());
-            subtask_set.spawn(async move {
-                let (skip_tx, skip_rx) = watch::channel(0u8);
-
-                let mut test_set = JoinSet::new();
-                for (test_idx, test) in subtask.tests.iter().enumerate() {
-                    let (skip_tx, tx, sandbox, language) = (skip_tx.clone(), tx.clone(), sandbox.clone(), language.clone());
-                    test_set.spawn(async move {
-                        let (verdict, resource_usage) = match sandbox.run(&language.run, config, test.input.as_bytes()).await {
-                            Ok(output) => {
-                                let status = output.exit_status();
-
-                                let verdict = if status.success() {
-                                    let stdout = output.stdout_utf8();
-                                    if stdout.is_ok() && stdout.unwrap().trim() == test.output.trim() {
-                                        Verdict::Accepted
-                                    } else {
-                                        Verdict::WrongAnswer
-                                    }
-                                } else if status.code().is_none() {
-                                    skip_tx.send_modify(|count| *count += 1);
-
-                                    if output.resource_usage().memory
-                                        > self.resource_limits_run.memory
-                                    {
-                                        Verdict::MemoryLimitExceeded
-                                    } else {
-                                        Verdict::TimeLimitExceeded
-                                    }
-                                } else {
-                                    Verdict::RuntimeError
-                                };
-
-                                (verdict, output.resource_usage())
-                            },
-                            Err(e) => {
-                                if let ErrorKind::BrokenPipe = e.kind() {
-                                    tracing::warn!("broken pipe error: possible that code is not reading/writing data correctly");
-                                    (Verdict::WrongAnswer, ResourceUsage::default())
-                                } else {
-                                    return Err(color_eyre::Report::new(e))
-                                }
-                            }
-                        };
-
-                        tx.send(Message::Judging { verdict, total }.into())
-                        .await
-                        .unwrap();
-
-                        let report = TestReport {
-                            verdict,
-                            resource_usage,
-                        };
-
-                        tracing::trace!(?report);
-
-                        Ok((test_idx, report))
-                    });
-                }
-
-                while let Some(result) = test_set.join_next().await {
-                    let (test_idx, test_report )= result??;
-
-                    subtask_report.verdict = subtask_report.verdict.min(test_report.verdict);
-                    subtask_report.tests[test_idx] = test_report;
-
-                    if *skip_rx.borrow() > SKIP_COUNT {
-                        tracing::warn!("exceeded skip count for subtask, skipping");
-                        test_set.abort_all();
-                        subtask_report.verdict = Verdict::Skipped;
-                        return Ok((subtask_idx, subtask_report));
-                    }
-                }
-
-                Ok::<_, color_eyre::Report>((subtask_idx, subtask_report))
-            });
-        }
-
-        while let Some(result) = subtask_set.join_next().await {
-            let (subtask_idx, subtask_report) = result??;
-            report.verdict = report.verdict.min(subtask_report.verdict);
-            report.subtasks[subtask_idx] = subtask_report;
-        }
-
-        tracing::debug!("judging complete");
-
-        self.tx
-            .send(
-                Message::Done {
-                    report,
-                    compile_stderr,
-                }
-                .into(),
-            )
-            .await?;
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn build(&mut self) -> color_eyre::Result<(bool, String)> {
-        let code_path = self.sandbox.path().join(&self.language.filename);
-        fs::write(&code_path, &self.code).await?;
-        tracing::debug!("code written to {}", code_path.display());
-
-        if let Some(build) = &self.language.build {
-            tracing::debug!("starting build step");
-            self.tx.send(Message::Building.into()).await?;
-
-            let config = SandboxConfig {
-                resource_limits: self.resource_limits_build,
-                ..Default::default()
-            };
-
-            let output = self.sandbox.run(build, config, &[]).await?;
-            let stderr = match output.stderr_utf8() {
-                Ok(s) => s.to_owned(),
-                Err(e) => format!("compile stderr was not valid UTF-8: {e}"),
-            };
-
-            if !output.exit_status().success() {
-                tracing::error!("build failed");
-                tracing::trace!(?stderr);
-
-                return Ok((false, stderr));
-            }
-
-            Ok((true, stderr))
-        } else {
-            tracing::debug!("no build step");
-            Ok((true, String::new()))
-        }
-    }
 }

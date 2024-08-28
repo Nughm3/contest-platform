@@ -1,0 +1,22 @@
+services:
+  judge:
+    build: ./judge
+    ports:
+      - 8000:8000
+    volumes:
+      - type: bind
+        source: ./judge_data
+        target: /judge
+    stop_signal: SIGINT
+    restart: always
+  web:
+    build: ./web
+    ports:
+      - 3000:3000
+    depends_on:
+      - judge
+    volumes:
+      - type: bind
+        source: ./judge_data/contests
+        target: /web/contests
+        read_only: true
