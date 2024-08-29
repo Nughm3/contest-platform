@@ -7,6 +7,7 @@ use contest::Contest;
 use once_cell::sync::OnceCell;
 use tokio::{fs, net::TcpListener};
 use tower_http::trace::TraceLayer;
+use tracing_error::ErrorLayer;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use tracing_tree::HierarchicalLayer;
 
@@ -25,6 +26,7 @@ async fn main() -> color_eyre::Result<()> {
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
         .with(HierarchicalLayer::default())
+        .with(ErrorLayer::default())
         .try_init()
         .wrap_err("failed to initialize logging")?;
 

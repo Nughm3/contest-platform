@@ -136,12 +136,12 @@ pub async fn handler(
             submission_path.display()
         );
 
+        let code_path = submission_path.join(&language.filename);
+        fs::write(&code_path, code).await?;
+        tracing::trace!("code written to {}", code_path.display());
+
         if let Some(build_command) = &language.build {
             Message::Compiling.send_to(&tx).await;
-
-            let code_path = submission_path.join(&language.filename);
-            fs::write(&code_path, code).await?;
-            tracing::trace!("code written to {}", code_path.display());
 
             let output = sandbox::run(submission_path, build_command, &[], Profile::Build).await?;
             let status = output.exit_status();
