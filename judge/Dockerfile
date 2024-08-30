@@ -1,9 +1,9 @@
-FROM rust:slim AS builder
+FROM rust:slim AS build
 
 # Install build dependencies
 RUN apt update && apt upgrade -y
 
-# Setup Rust project
+# Set up Rust project
 WORKDIR /usr/src
 RUN cargo new judge
 WORKDIR /usr/src/judge
@@ -26,7 +26,7 @@ RUN apt install -y gcc g++ python3
 RUN rm -rf /var/lib/apt/lists/*
 
 # Copy the built binary
-COPY --from=builder /usr/src/judge/target/release/judge /usr/local/bin/judge
+COPY --from=build /usr/src/judge/target/release/judge /usr/local/bin/judge
 
 # Configure
 WORKDIR /judge
@@ -34,5 +34,4 @@ VOLUME ["/judge"]
 EXPOSE 8000
 
 # Run
-ENV RUST_LOG=trace
 CMD ["judge"]

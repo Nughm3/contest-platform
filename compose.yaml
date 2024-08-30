@@ -1,3 +1,5 @@
+name: contest-platform
+
 services:
   judge:
     build: ./judge
@@ -5,12 +7,12 @@ services:
       - 8000:8000
     volumes:
       - type: bind
-        source: ./judge_data
+        source: ./data
         target: /judge
     environment:
       RUST_LOG: trace
     stop_signal: SIGINT
-    restart: always
+    restart: on-failure
   web:
     build: ./web
     ports:
@@ -19,6 +21,6 @@ services:
       - judge
     volumes:
       - type: bind
-        source: ./judge_data/contests
+        source: ./data/contests
         target: /web/contests
         read_only: true
