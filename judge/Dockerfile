@@ -31,7 +31,7 @@ COPY --from=build /usr/src/judge/target/release/judge /usr/local/bin/judge
 # Configure
 WORKDIR /judge
 VOLUME ["/judge"]
-EXPOSE 8000
+EXPOSE 8128
 
 # Run
 CMD ["judge"]

@@ -15,6 +15,8 @@ use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
 
 use crate::{
+    config::Language,
+    contest::Task,
     sandbox::{self, Profile},
     CONFIG, CONTESTS,
 };
@@ -30,7 +32,7 @@ enum Message {
     /// Judging status
     Judging { verdict: Verdict },
     /// Tests were skipped due to exceeding resource usage
-    Skipped { estimated_count: u32 },
+    Skipping { estimated_count: u32 },
     /// Judging completed successfully
     Done {
         task: Verdict,
@@ -119,7 +121,17 @@ pub async fn handler(
     tracing::info!("submission received for {contest_name}/{}", task_index + 1);
 
     let (tx, rx) = mpsc::channel(64);
+    tokio::spawn(submit(tx, task, code, language));
 
+    Ok(Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default()))
+}
+
+async fn submit(
+    tx: mpsc::Sender<Result<Event, Infallible>>,
+    task: &Task,
+    code: String,
+    language: &Language,
+) -> Result<(), std::io::Error> {
     let uuid = Uuid::new_v4();
     Message::Queued {
         total: task.subtasks.iter().map(|s| s.tests.len() as u32).sum(),
@@ -128,68 +140,64 @@ pub async fn handler(
     .send_to(&tx)
     .await;
 
-    tokio::spawn(async move {
-        let submission_path = std::path::Path::new("submissions").join(uuid.to_string());
-        fs::create_dir(&submission_path).await?;
-        tracing::trace!(
-            "created submission directory at {}",
-            submission_path.display()
-        );
+    let submission_path = std::path::Path::new("submissions").join(uuid.to_string());
+    fs::create_dir(&submission_path).await?;
+    tracing::trace!(
+        "created submission directory at {}",
+        submission_path.display()
+    );
 
-        let code_path = submission_path.join(&language.filename);
-        fs::write(&code_path, code).await?;
-        tracing::trace!("code written to {}", code_path.display());
+    let code_path = submission_path.join(&language.filename);
+    fs::write(&code_path, code).await?;
+    tracing::trace!("code written to {}", code_path.display());
 
-        if let Some(build_command) = &language.build {
-            Message::Compiling.send_to(&tx).await;
+    if let Some(build_command) = &language.build {
+        Message::Compiling.send_to(&tx).await;
 
-            let output = sandbox::run(submission_path, build_command, &[], Profile::Build).await?;
-            let status = output.exit_status();
-            let exit_code = status.code().unwrap_or(-1);
-            if !status.success() {
-                if exit_code != -1 {
-                    tracing::error!("build failed with exit code: {exit_code}");
-                } else {
-                    tracing::error!("build failed, terminated by signal");
-                }
-
-                Message::CompilerOutput {
-                    exit_code,
-                    stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
-                }
-                .send_to(&tx)
-                .await;
-
-                Message::Done {
-                    task: Verdict::CompileError,
-                    subtasks: vec![Verdict::CompileError; task.subtasks.len()],
-                    tests: task
-                        .subtasks
-                        .iter()
-                        .map(|s| vec![Verdict::CompileError; s.tests.len()])
-                        .collect(),
-                }
-                .send_to(&tx)
-                .await;
-
-                return Ok(());
-            } else if !output.stderr().is_empty() {
-                tracing::warn!("compiler warnings emitted");
-                Message::CompilerOutput {
-                    exit_code,
-                    stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
-                }
-                .send_to(&tx)
-                .await;
+        let output = sandbox::run(submission_path, build_command, &[], Profile::Build).await?;
+        let status = output.exit_status();
+        let exit_code = status.code().unwrap_or(-1);
+        if !status.success() {
+            if exit_code != -1 {
+                tracing::error!("build failed with exit code: {exit_code}");
             } else {
-                tracing::trace!("build succeeded");
+                tracing::error!("build failed, terminated by signal");
             }
+
+            Message::CompilerOutput {
+                exit_code,
+                stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
+            }
+            .send_to(&tx)
+            .await;
+
+            Message::Done {
+                task: Verdict::CompileError,
+                subtasks: vec![Verdict::CompileError; task.subtasks.len()],
+                tests: task
+                    .subtasks
+                    .iter()
+                    .map(|s| vec![Verdict::CompileError; s.tests.len()])
+                    .collect(),
+            }
+            .send_to(&tx)
+            .await;
+
+            return Ok(());
+        } else if !output.stderr().is_empty() {
+            tracing::warn!("compiler warnings emitted");
+            Message::CompilerOutput {
+                exit_code,
+                stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
+            }
+            .send_to(&tx)
+            .await;
         } else {
-            tracing::trace!("skipping build phase");
+            tracing::trace!("build succeeded");
         }
+    } else {
+        tracing::trace!("skipping build phase");
+    }
 
-        Ok::<_, tokio::io::Error>(())
-    });
-
-    Ok(Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default()))
+    Ok(())
 }

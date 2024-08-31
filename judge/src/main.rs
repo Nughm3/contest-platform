@@ -80,7 +80,7 @@ async fn main() -> color_eyre::Result<()> {
         .route("/:contest/:task", post(submit::handler))
         .layer(TraceLayer::new_for_http());
 
-    let addr = SocketAddr::from(([0; 4], 8000));
+    let addr = SocketAddr::from(([0; 4], 8128));
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("failed to bind to TCP port")?;

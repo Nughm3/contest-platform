@@ -39,15 +39,6 @@ pub struct ResourceLimits {
     pub memory: u64,
 }
 
-impl Default for ResourceLimits {
-    fn default() -> Self {
-        ResourceLimits {
-            cpu: 1,
-            memory: 512_000_000,
-        }
-    }
-}
-
 impl ResourceLimits {
     #[tracing::instrument]
     pub fn set(&self) -> io::Result<()> {

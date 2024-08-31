@@ -8,6 +8,7 @@ use crate::sandbox::{Command, ResourceLimits};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
+    pub skip_count: u8,
     pub resource_limits: ResourceLimits,
     pub languages: HashMap<String, Language>,
 }
@@ -30,6 +31,7 @@ pub enum ConfigLoadError {
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
 struct ConfigRepr {
+    skip_count: u8,
     resource_limits: ResourceLimits,
     #[serde(alias = "language")]
     languages: Vec<LanguageRepr>,
@@ -63,6 +65,7 @@ impl Config {
         }
 
         Ok(Config {
+            skip_count: repr.skip_count,
             resource_limits: repr.resource_limits,
             languages,
         })
