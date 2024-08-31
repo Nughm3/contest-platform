@@ -16,7 +16,7 @@ pub struct Config {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Language {
     pub filename: String,
-    pub build: Option<Command>,
+    pub compile: Option<Command>,
     pub run: Command,
 }
 
@@ -41,7 +41,7 @@ struct ConfigRepr {
 struct LanguageRepr {
     name: String,
     filename: String,
-    build: Option<Vec<String>>,
+    compile: Option<Vec<String>>,
     run: Vec<String>,
 }
 
@@ -54,8 +54,8 @@ impl Config {
                 language.name,
                 Language {
                     filename: language.filename,
-                    build: if let Some(build) = language.build {
-                        Some(convert_command(build)?)
+                    compile: if let Some(compile) = language.compile {
+                        Some(convert_command(compile)?)
                     } else {
                         None
                     },

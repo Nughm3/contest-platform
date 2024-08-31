@@ -7,17 +7,17 @@ memory = 512_000_000 # bytes
 [[language]]
 name = "c99"
 filename = "submission.c"
-build = ["gcc", "./submission.c", "-std=c99", "-O3", "-o", "./submission"]
+compile = ["gcc", "./submission.c", "-std=c99", "-O3", "-o", "./submission"]
 run = ["./submission"]
 
 [[language]]
 name = "c++17"
 filename = "submission.cpp"
-build = ["g++", "./submission.cpp", "-std=c++17", "-O3", "-o", "./submission"]
+compile = ["g++", "./submission.cpp", "-std=c++17", "-O3", "-o", "./submission"]
 run = ["./submission"]
 
 [[language]]
 name = "python3"
 filename = "submission.py"
-# Python is interpreted so there is no `build` command
+# Python is interpreted so there is no `compile` command
 run = ["python3", "./submission.py"]

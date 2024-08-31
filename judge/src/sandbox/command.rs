@@ -77,7 +77,7 @@ impl Output {
     }
 
     pub fn stdout_utf8(&self) -> Result<&str, str::Utf8Error> {
-        str::from_utf8(&self.stdout)
+        str::from_utf8(self.stdout())
     }
 
     pub fn stderr(&self) -> &[u8] {
@@ -85,7 +85,7 @@ impl Output {
     }
 
     pub fn stderr_utf8(&self) -> Result<&str, str::Utf8Error> {
-        str::from_utf8(&self.stderr)
+        str::from_utf8(self.stderr())
     }
 
     pub fn resource_usage(&self) -> ResourceUsage {

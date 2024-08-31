@@ -10,7 +10,7 @@ mod seccomp;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Profile {
-    Build,
+    Compile,
     Run(ResourceLimits),
 }
 
