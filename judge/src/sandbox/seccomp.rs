@@ -155,10 +155,7 @@ static SECCOMP_FILTER: Lazy<BpfProgram> = Lazy::new(|| {
     filter.try_into().expect("failed to compile seccomp filter")
 });
 
-#[tracing::instrument]
 pub fn apply_filters() -> Result<()> {
     seccompiler::apply_filter(&SECCOMP_FILTER)?;
-    println!("seccomp filters applied");
-    tracing::trace!("seccomp filters applied");
     Ok(())
 }

@@ -1,4 +1,4 @@
-use std::{convert::Infallible, path::Path};
+use std::{convert::Infallible, io::ErrorKind, path::Path};
 
 use axum::{
     extract,
@@ -18,7 +18,7 @@ use uuid::Uuid;
 use crate::{
     config::{Config, Language},
     contest::Task,
-    sandbox::{self, Command, Profile},
+    sandbox::{run, Command, Profile, ResourceUsage},
     CONFIG, CONTESTS,
 };
 
@@ -88,12 +88,17 @@ pub async fn handler(
     );
 
     let (tx, rx) = mpsc::channel(64);
+
     tokio::spawn(async move {
         if let Err(report) = submit(&tx, config, task, code, language).await {
-            tracing::error!(%report);
+            tracing::error!("{report:?}");
 
             Message::Error {
-                reason: report.to_string(),
+                reason: report
+                    .chain()
+                    .enumerate()
+                    .map(|(i, e)| format!("{i}: {e}\n"))
+                    .collect(),
             }
             .send_to(&tx)
             .await;
@@ -118,28 +123,29 @@ enum Message {
     /// Tests were skipped due to exceeding resource usage
     Skipping { estimated_count: u32 },
     /// Judging completed successfully (final)
-    Done {
-        task: Verdict,
-        subtasks: Vec<Verdict>,
-        tests: Vec<Vec<Verdict>>,
-    },
+    Done { report: Report },
     /// The judge experienced an internal error (final)
     Error { reason: String },
 }
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize)]
+struct Report {
+    task: Verdict,
+    subtasks: Vec<Verdict>,
+    tests: Vec<Vec<TestReport>>,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize)]
+struct TestReport {
+    verdict: Verdict,
+    resource_usage: ResourceUsage,
+}
+
 impl Message {
     async fn send_to(self, tx: &Sender) {
-        let event_type = match self {
-            Message::Queued { .. }
-            | Message::Compiling
-            | Message::CompilerOutput { .. }
-            | Message::Done { .. }
-            | Message::Error { .. } => "system",
-            Message::Judging { .. } | Message::Skipping { .. } => "judge",
-        };
-
-        let event = Event::default().event(event_type).json_data(self).unwrap();
-        tx.send(Ok(event)).await.expect("failed to send message");
+        tx.send(Ok(Event::default().json_data(self).unwrap()))
+            .await
+            .expect("connection closed, message not sent")
     }
 }
 
@@ -154,6 +160,7 @@ enum Verdict {
     Accepted,
 }
 
+#[tracing::instrument(skip_all)]
 async fn submit(
     tx: &Sender,
     config: &Config,
@@ -166,7 +173,7 @@ async fn submit(
         total: task.subtasks.iter().map(|s| s.tests.len() as u32).sum(),
         uuid,
     }
-    .send_to(&tx)
+    .send_to(tx)
     .await;
 
     tracing::info!("submission ID: {uuid}");
@@ -182,50 +189,60 @@ async fn submit(
         .wrap_err("failed to write code to disk")?;
 
     let build_succeeded = if let Some(command) = &language.build {
-        build(&tx, &dir, command)
+        build(tx, &dir, command)
             .await
-            .wrap_err("failed to run build command")?
+            .wrap_err("failed to execute build command")?
     } else {
         tracing::trace!("skipping build phase");
         true
     };
 
     if build_succeeded {
-        judge(&tx, config, task, &dir, &language.run)
+        judge(tx, config, task, &dir, &language.run)
             .await
             .wrap_err("failed to judge submission")?;
     } else {
         Message::Done {
-            task: Verdict::CompileError,
-            subtasks: vec![Verdict::CompileError; task.subtasks.len()],
-            tests: task
-                .subtasks
-                .iter()
-                .map(|s| vec![Verdict::CompileError; s.tests.len()])
-                .collect(),
+            report: Report {
+                task: Verdict::CompileError,
+                subtasks: vec![Verdict::CompileError; task.subtasks.len()],
+                tests: task
+                    .subtasks
+                    .iter()
+                    .map(|s| {
+                        vec![
+                            TestReport {
+                                verdict: Verdict::CompileError,
+                                resource_usage: ResourceUsage::default()
+                            };
+                            s.tests.len()
+                        ]
+                    })
+                    .collect(),
+            },
         }
-        .send_to(&tx)
+        .send_to(tx)
         .await;
     }
 
     Ok(())
 }
 
-async fn build(tx: &Sender, dir: impl AsRef<Path>, command: &Command) -> std::io::Result<bool> {
-    Message::Compiling.send_to(&tx).await;
+async fn build(tx: &Sender, dir: impl AsRef<Path>, command: &Command) -> color_eyre::Result<bool> {
+    Message::Compiling.send_to(tx).await;
 
-    let output = sandbox::run(dir, command, &[], Profile::Build).await?;
+    let output = run(dir, command, &[], Profile::Build).await?;
     let status = output.exit_status();
     let exit_code = status.code().unwrap_or(-1);
 
     if status.success() {
-        if output.stderr().is_empty() {
+        if !output.stderr().is_empty() {
             tracing::warn!("compiler warnings emitted");
             Message::CompilerOutput {
                 exit_code,
                 stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
             }
-            .send_to(&tx)
+            .send_to(tx)
             .await;
         }
 
@@ -236,7 +253,7 @@ async fn build(tx: &Sender, dir: impl AsRef<Path>, command: &Command) -> std::io
             exit_code,
             stderr: output.stderr_utf8().unwrap_or_default().to_owned(),
         }
-        .send_to(&tx)
+        .send_to(tx)
         .await;
 
         if exit_code != -1 {
@@ -256,5 +273,92 @@ async fn judge(
     dir: impl AsRef<Path>,
     command: &Command,
 ) -> color_eyre::Result<()> {
+    let mut report = Report {
+        task: Verdict::Accepted,
+        subtasks: vec![Verdict::Accepted; task.subtasks.len()],
+        tests: task
+            .subtasks
+            .iter()
+            .map(|s| {
+                vec![
+                    TestReport {
+                        verdict: Verdict::Skipped,
+                        resource_usage: ResourceUsage::default()
+                    };
+                    s.tests.len()
+                ]
+            })
+            .collect(),
+    };
+
+    for (subtask_idx, subtask) in task.subtasks.iter().enumerate() {
+        for (test_idx, test) in subtask.tests.iter().enumerate() {
+            let test_report = match run(
+                &dir,
+                command,
+                test.input.as_bytes(),
+                Profile::Run(config.resource_limits),
+            )
+            .await
+            {
+                Ok(output) => {
+                    let status = output.exit_status();
+                    let resource_usage = output.resource_usage();
+
+                    let verdict = if resource_usage.exceeded(config.resource_limits)
+                        && status.code().is_none()
+                    {
+                        if resource_usage.exceeded_time(config.resource_limits) {
+                            Verdict::TimeLimitExceeded
+                        } else {
+                            Verdict::MemoryLimitExceeded
+                        }
+                    } else if status.success() {
+                        match output.stdout_utf8() {
+                            Ok(stdout) if stdout.trim() == test.output.trim() => Verdict::Accepted,
+                            _ => Verdict::WrongAnswer,
+                        }
+                    } else {
+                        Verdict::RuntimeError
+                    };
+
+                    TestReport {
+                        verdict,
+                        resource_usage,
+                    }
+                }
+                Err(e) if matches!(e.kind(), ErrorKind::BrokenPipe) => {
+                    tracing::warn!(
+                        "broken pipe error, code may not be reading/writing data correctly"
+                    );
+                    TestReport {
+                        verdict: Verdict::WrongAnswer,
+                        resource_usage: ResourceUsage::default(),
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            };
+
+            report.tests[subtask_idx][test_idx] = test_report;
+            report.subtasks[subtask_idx] = report.subtasks[subtask_idx].min(test_report.verdict);
+
+            tracing::trace!(
+                "{}-{} : {:?}",
+                subtask_idx + 1,
+                test_idx + 1,
+                test_report.verdict
+            );
+
+            Message::Judging {
+                verdict: test_report.verdict,
+            }
+            .send_to(tx)
+            .await;
+        }
+
+        report.task = report.task.min(report.subtasks[subtask_idx]);
+    }
+
+    Message::Done { report }.send_to(tx).await;
     Ok(())
 }

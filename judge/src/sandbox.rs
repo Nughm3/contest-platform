@@ -2,13 +2,9 @@ use std::{path::Path, process::Stdio};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt, Error, ErrorKind, Result};
 
-pub use self::{
-    command::{Command, Output},
-    resource::ResourceLimits,
-};
+pub use self::{command::*, resource::*};
 
 mod command;
-mod landlock;
 mod resource;
 mod seccomp;
 
@@ -34,13 +30,8 @@ pub async fn run(
             .stderr(Stdio::piped());
 
         if let Profile::Run(resource_limits) = profile {
-            let dir = dir.to_path_buf();
             unsafe {
                 cmd.pre_exec(move || {
-                    landlock::apply_landlock(&dir).map_err(|e| {
-                        Error::new(ErrorKind::Other, format!("landlock failed: {e}"))
-                    })?;
-
                     resource_limits.set()?;
 
                     seccomp::apply_filters().map_err(|e| {

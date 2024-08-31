@@ -2,7 +2,9 @@ name: contest-platform
 
 services:
   judge:
-    build: ./judge
+    build: 
+      context: judge
+      target: final
     ports:
       - 8128:8128
     volumes:
@@ -14,7 +16,9 @@ services:
     stop_signal: SIGINT
     restart: on-failure
   web:
-    build: ./web
+    build:
+      context: web
+      target: final
     ports:
       - 3000:3000
     depends_on:

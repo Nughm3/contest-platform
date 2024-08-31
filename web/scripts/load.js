@@ -52,8 +52,8 @@ for (const task of taskEntries.sort().filter((e) => e.isDirectory())) {
 				const basePath = path.join(subtask.parentPath, subtask.name);
 				try {
 					tests.push({
-						input: await fs.readFile(path.join(basePath, `${i}.out`), { encoding: 'utf8' }),
-						output: await fs.readFile(path.join(basePath, `${i}.in`), { encoding: 'utf8' })
+						input: await fs.readFile(path.join(basePath, `${i}.in`), { encoding: 'utf8' }),
+						output: await fs.readFile(path.join(basePath, `${i}.out`), { encoding: 'utf8' })
 					});
 				} catch {
 					break;

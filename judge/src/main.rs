@@ -25,10 +25,10 @@ async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
-        .with(HierarchicalLayer::default())
+        .with(HierarchicalLayer::default().with_ansi(true))
         .with(ErrorLayer::default())
         .try_init()
-        .wrap_err("failed to initialize logging")?;
+        .wrap_err("failed to initialize tracing")?;
 
     let config = {
         let input = fs::read_to_string("config.toml")

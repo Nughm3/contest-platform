@@ -22,7 +22,11 @@ toml = { version = "0.8.19", default-features = false, features = ["parse"] }
 tower-http = { version = "0.5.2", features = ["trace"] }
 tracing = "0.1.40"
 tracing-error = "0.2.0"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.18", default-features = false, features = ["registry", "env-filter"] }
 tracing-tree = "0.4.0"
 uuid = { version = "1.10.0", features = ["v4", "fast-rng", "serde"] }
 which = "6.0.3"
+
+# [profile.release]
+# codegen-units = 1
+# lto = "fat"
