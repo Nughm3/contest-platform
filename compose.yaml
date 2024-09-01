@@ -14,7 +14,7 @@ services:
     environment:
       RUST_LOG: trace
     stop_signal: SIGINT
-    restart: on-failure
+    restart: always
   web:
     build:
       context: web
@@ -28,3 +28,6 @@ services:
         source: ./data/contests
         target: /web/contests
         read_only: true
+    environment:
+      DATABASE_URL: ./data/data.db
+    restart: always
