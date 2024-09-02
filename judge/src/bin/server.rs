@@ -9,8 +9,7 @@ use axum::{
 };
 use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use color_eyre::eyre::WrapErr;
-use contest::Contest;
-use once_cell::sync::OnceCell;
+use judge::{contest::Contest, submit::submit, CONTESTS};
 use thiserror::Error;
 use tokio::{fs, net::TcpListener, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
@@ -19,12 +18,6 @@ use tracing_error::ErrorLayer;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use tracing_tree::HierarchicalLayer;
 use uuid::Uuid;
-
-mod contest;
-mod sandbox;
-mod submit;
-
-static CONTESTS: OnceCell<AHashMap<String, Contest>> = OnceCell::new();
 
 #[derive(TryFromMultipart)]
 struct SubmitRequest {
@@ -94,7 +87,7 @@ async fn handler(
     fs::write(dir.join(&language.filename), code).await?;
 
     let (tx, rx) = mpsc::channel(64);
-    tokio::spawn(submit::submit(tx, dir, &contest.config, task, language));
+    tokio::spawn(submit(tx, dir, &contest.config, task, language));
 
     Ok(Sse::new(ReceiverStream::new(rx)))
 }

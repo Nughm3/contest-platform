@@ -7,13 +7,13 @@ RUN cargo init
 # Build and cache dependencies only
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
-RUN cargo build --release
+RUN cargo build --bin server --release
 RUN rm -rf src
 
 # Build binary
 COPY . .
 RUN touch -am src/main.rs
-RUN cargo build --release
+RUN cargo build --bin server --release
 
 FROM debian:stable-slim AS final
 

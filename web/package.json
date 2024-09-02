@@ -11,6 +11,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
+		"schema": "json2ts --input 'schema/*.json' -o src/lib/judge/schema --format",
 		"load": "scripts/load.js"
 	},
 	"devDependencies": {
@@ -33,6 +34,7 @@
 		"vite": "^5.4.2"
 	},
 	"dependencies": {
-		"@sveltejs/adapter-node": "^5.2.2"
+		"@sveltejs/adapter-node": "^5.2.2",
+		"json-schema-to-typescript": "^15.0.2"
 	}
 }

@@ -26,7 +26,7 @@ pub struct TestReport {
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, JsonSchema)]
-enum Verdict {
+pub enum Verdict {
     CompileError,
     RuntimeError,
     MemoryLimitExceeded,
@@ -37,7 +37,7 @@ enum Verdict {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, JsonSchema)]
-enum Message {
+pub enum Message {
     /// Queued for submission
     Queued { tests: u32 },
     /// Indicates that the compile step has been started (optional)
