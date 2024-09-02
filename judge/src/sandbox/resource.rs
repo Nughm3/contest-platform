@@ -1,9 +1,10 @@
 use std::{io, os::unix::process::ExitStatusExt, process::ExitStatus, time::Duration};
 
 use rlimit::{setrlimit, Resource};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct ResourceUsage {
     /// User time
@@ -15,10 +16,6 @@ pub struct ResourceUsage {
 }
 
 impl ResourceUsage {
-    pub const TIME_TOLERANCE: f64 = 0.1;
-
-    pub const MEMORY_TOLERANCE: u64 = 1000;
-
     pub fn total_time(&self) -> Duration {
         self.user_time + self.sys_time
     }
@@ -28,21 +25,26 @@ impl ResourceUsage {
     }
 
     pub fn exceeded_time(&self, resource_limits: ResourceLimits) -> bool {
-        (self.total_time().as_secs_f64() - resource_limits.cpu as f64).abs() <= Self::TIME_TOLERANCE
+        (self.total_time().as_secs_f64() - resource_limits.cpu as f64).abs()
+            <= resource_limits.cpu_tolerance
     }
 
     pub fn exceeded_memory(&self, resource_limits: ResourceLimits) -> bool {
-        self.memory.abs_diff(resource_limits.memory) <= Self::MEMORY_TOLERANCE
+        self.memory.abs_diff(resource_limits.memory) <= resource_limits.memory_tolerance
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ResourceLimits {
     /// CPU time (seconds)
     pub cpu: u64,
+    /// CPU time tolerance (seconds)
+    pub cpu_tolerance: f64,
     /// Memory usage (bytes)
     pub memory: u64,
+    /// Memory usage tolerance (bytes)
+    pub memory_tolerance: u64,
 }
 
 impl ResourceLimits {

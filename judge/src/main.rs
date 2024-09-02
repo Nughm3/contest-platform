@@ -1,23 +1,103 @@
-use std::{collections::HashMap, ffi::OsStr, net::SocketAddr, path::Path};
+use std::{ffi::OsStr, net::SocketAddr, path::Path};
 
-use axum::{routing::post, Router};
+use ahash::AHashMap;
+use axum::{
+    http::StatusCode,
+    response::{sse::Event, IntoResponse, Response, Sse},
+    routing::post,
+    Router,
+};
+use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use color_eyre::eyre::WrapErr;
-use config::Config;
 use contest::Contest;
 use once_cell::sync::OnceCell;
-use tokio::{fs, net::TcpListener};
+use thiserror::Error;
+use tokio::{fs, net::TcpListener, sync::mpsc};
+use tokio_stream::wrappers::ReceiverStream;
 use tower_http::trace::TraceLayer;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use tracing_tree::HierarchicalLayer;
+use uuid::Uuid;
 
-mod config;
 mod contest;
 mod sandbox;
 mod submit;
 
-static CONFIG: OnceCell<Config> = OnceCell::new();
-static CONTESTS: OnceCell<HashMap<String, Contest>> = OnceCell::new();
+static CONTESTS: OnceCell<AHashMap<String, Contest>> = OnceCell::new();
+
+#[derive(TryFromMultipart)]
+struct SubmitRequest {
+    contest: String,
+    task: usize,
+    language: String,
+    code: String,
+}
+
+type Stream = Sse<ReceiverStream<Result<Event, std::convert::Infallible>>>;
+
+#[derive(Debug, Error)]
+enum SubmitError {
+    #[error("contest {0} not found")]
+    ContestNotFound(String),
+    #[error("task #{1} for contest {0} not found")]
+    TaskNotFound(String, usize),
+    #[error("unsupported language: {0}")]
+    UnsupportedLanguage(String),
+    #[error("IO error: {0}")]
+    Io(#[from] tokio::io::Error),
+}
+
+impl IntoResponse for SubmitError {
+    fn into_response(self) -> Response {
+        let status = match self {
+            SubmitError::ContestNotFound(_) | SubmitError::TaskNotFound(_, _) => {
+                StatusCode::NOT_FOUND
+            }
+            SubmitError::UnsupportedLanguage(_) => StatusCode::BAD_REQUEST,
+            SubmitError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        (status, self.to_string()).into_response()
+    }
+}
+
+async fn handler(
+    TypedMultipart(SubmitRequest {
+        contest: contest_name,
+        task: task_index,
+        language: language_name,
+        code,
+    }): TypedMultipart<SubmitRequest>,
+) -> Result<Stream, SubmitError> {
+    let contests = CONTESTS.get().unwrap();
+
+    let contest = contests
+        .get(&contest_name)
+        .ok_or_else(|| SubmitError::ContestNotFound(contest_name.clone()))?;
+
+    let task = task_index
+        .checked_sub(1)
+        .and_then(|idx| contest.tasks.get(idx))
+        .ok_or_else(|| SubmitError::TaskNotFound(contest_name, task_index))?;
+
+    let language = contest
+        .config
+        .languages
+        .iter()
+        .find(|lang| lang.name == language_name)
+        .ok_or_else(|| SubmitError::UnsupportedLanguage(language_name))?;
+
+    let uuid = Uuid::new_v4();
+    let dir = Path::new("submissions").join(uuid.to_string());
+    fs::create_dir(&dir).await?;
+    fs::write(dir.join(&language.filename), code).await?;
+
+    let (tx, rx) = mpsc::channel(64);
+    tokio::spawn(submit::submit(tx, dir, &contest.config, task, language));
+
+    Ok(Sse::new(ReceiverStream::new(rx)))
+}
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -30,21 +110,8 @@ async fn main() -> color_eyre::Result<()> {
         .try_init()
         .wrap_err("failed to initialize tracing")?;
 
-    let config = {
-        let input = fs::read_to_string("config.toml")
-            .await
-            .wrap_err("failed to read config.toml")?;
-
-        let config = Config::load(&input).wrap_err("failed to load config.toml")?;
-
-        tracing::info!("loaded config.toml");
-        config
-    };
-
-    CONFIG.set(config).unwrap();
-
     let contests = {
-        let mut contests = HashMap::new();
+        let mut contests = AHashMap::new();
 
         let mut read_dir = fs::read_dir("contests")
             .await
@@ -72,12 +139,12 @@ async fn main() -> color_eyre::Result<()> {
     CONTESTS.set(contests).unwrap();
 
     if !Path::new("submissions").is_dir() {
-        tracing::warn!("submissions directory not found, attempting to create it");
+        tracing::warn!("submissions directory not found, creating it");
         fs::create_dir("submissions").await?;
     }
 
     let app = Router::new()
-        .route("/:contest/:task", post(submit::handler))
+        .route("/", post(handler))
         .layer(TraceLayer::new_for_http());
 
     let addr = SocketAddr::from(([0; 4], 8128));

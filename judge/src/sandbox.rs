@@ -8,7 +8,7 @@ mod command;
 mod resource;
 mod seccomp;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Profile {
     Compile,
     Run(ResourceLimits),

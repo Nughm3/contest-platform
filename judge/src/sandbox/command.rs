@@ -1,32 +1,19 @@
-use std::{
-    ffi::{OsStr, OsString},
-    fmt,
-    path::{Path, PathBuf},
-    process::ExitStatus,
-    str,
-};
+use std::{fmt, path::PathBuf, process::ExitStatus, str};
 
+use serde::Deserialize;
 use tokio::process::Command as TokioCommand;
+use which::which;
 
 use super::resource::ResourceUsage;
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "Vec<String>")]
 pub struct Command {
     executable: PathBuf,
-    args: Vec<OsString>,
+    args: Vec<String>,
 }
 
 impl Command {
-    pub fn new(
-        executable: impl AsRef<Path>,
-        args: impl IntoIterator<Item = impl AsRef<OsStr>>,
-    ) -> Self {
-        Command {
-            executable: executable.as_ref().to_path_buf(),
-            args: args.into_iter().map(|s| s.as_ref().to_owned()).collect(),
-        }
-    }
-
     pub fn create(&self) -> TokioCommand {
         let mut command = TokioCommand::new(&self.executable);
         command.args(&self.args);
@@ -36,12 +23,28 @@ impl Command {
 
 impl fmt::Display for Command {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} {}",
-            self.executable.display(),
-            Vec::from_iter(self.args.iter().map(|s| s.to_string_lossy())).join(", ")
-        )
+        write!(f, "{} {}", self.executable.display(), self.args.join(" "))
+    }
+}
+
+#[derive(Debug)]
+pub struct EmptyCommand;
+
+impl fmt::Display for EmptyCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt("empty command", f)
+    }
+}
+
+impl TryFrom<Vec<String>> for Command {
+    type Error = EmptyCommand;
+
+    fn try_from(vec: Vec<String>) -> Result<Self, Self::Error> {
+        let (executable, args) = vec.split_first().ok_or(EmptyCommand)?;
+        Ok(Command {
+            executable: which(executable).unwrap_or_else(|_| PathBuf::from(executable)),
+            args: args.to_owned(),
+        })
     }
 }
 
