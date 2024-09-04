@@ -37,6 +37,7 @@ pub enum Verdict {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(tag = "type")]
 pub enum Message {
     /// Queued for submission
     Queued { tests: u32 },

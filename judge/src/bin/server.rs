@@ -2,7 +2,7 @@ use std::{ffi::OsStr, net::SocketAddr, path::Path};
 
 use ahash::AHashMap;
 use axum::{
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::{sse::Event, IntoResponse, Response, Sse},
     routing::post,
     Router,
@@ -13,7 +13,11 @@ use judge::{contest::Contest, submit::submit, CONTESTS};
 use thiserror::Error;
 use tokio::{fs, net::TcpListener, sync::mpsc};
 use tokio_stream::wrappers::ReceiverStream;
-use tower_http::trace::TraceLayer;
+use tower::ServiceBuilder;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{prelude::*, EnvFilter};
 use tracing_tree::HierarchicalLayer;
@@ -136,9 +140,15 @@ async fn main() -> color_eyre::Result<()> {
         fs::create_dir("submissions").await?;
     }
 
-    let app = Router::new()
-        .route("/", post(handler))
-        .layer(TraceLayer::new_for_http());
+    let services = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http())
+        .layer(
+            CorsLayer::new()
+                .allow_methods([Method::POST])
+                .allow_origin(Any),
+        );
+
+    let app = Router::new().route("/", post(handler)).layer(services);
 
     let addr = SocketAddr::from(([0; 4], 8128));
     let listener = TcpListener::bind(addr)

@@ -1,0 +1,267 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Message",
+  "oneOf": [
+    {
+      "description": "Queued for submission",
+      "type": "object",
+      "required": [
+        "tests",
+        "type"
+      ],
+      "properties": {
+        "tests": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Queued"
+          ]
+        }
+      }
+    },
+    {
+      "description": "Indicates that the compile step has been started (optional)",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Compiling"
+          ]
+        }
+      }
+    },
+    {
+      "description": "Provides compiler warnings and errors (optional)",
+      "type": "object",
+      "required": [
+        "exit_code",
+        "stderr",
+        "type"
+      ],
+      "properties": {
+        "exit_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "stderr": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Compiled"
+          ]
+        }
+      }
+    },
+    {
+      "description": "Judging status",
+      "type": "object",
+      "required": [
+        "type",
+        "verdict"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "Judging"
+          ]
+        },
+        "verdict": {
+          "$ref": "#/definitions/Verdict"
+        }
+      }
+    },
+    {
+      "description": "Tests were skipped due to exceeding resource usage",
+      "type": "object",
+      "required": [
+        "estimated_count",
+        "type"
+      ],
+      "properties": {
+        "estimated_count": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Skipping"
+          ]
+        }
+      }
+    },
+    {
+      "description": "Broken pipe error encountered, code may not be performing I/O correctly",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "BrokenPipe"
+          ]
+        }
+      }
+    },
+    {
+      "description": "Judging completed successfully (final)",
+      "type": "object",
+      "required": [
+        "report",
+        "type"
+      ],
+      "properties": {
+        "report": {
+          "$ref": "#/definitions/Report"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Done"
+          ]
+        }
+      }
+    },
+    {
+      "description": "The judge experienced an internal error (final)",
+      "type": "object",
+      "required": [
+        "reason",
+        "type"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Error"
+          ]
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "Duration": {
+      "type": "object",
+      "required": [
+        "nanos",
+        "secs"
+      ],
+      "properties": {
+        "nanos": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "secs": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      }
+    },
+    "Report": {
+      "type": "object",
+      "required": [
+        "subtasks",
+        "task",
+        "tests"
+      ],
+      "properties": {
+        "subtasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Verdict"
+          }
+        },
+        "task": {
+          "$ref": "#/definitions/Verdict"
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/TestReport"
+            }
+          }
+        }
+      }
+    },
+    "ResourceUsage": {
+      "type": "object",
+      "required": [
+        "memory",
+        "sys-time",
+        "user-time"
+      ],
+      "properties": {
+        "memory": {
+          "description": "Memory usage (bytes)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "sys-time": {
+          "description": "System time",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Duration"
+            }
+          ]
+        },
+        "user-time": {
+          "description": "User time",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Duration"
+            }
+          ]
+        }
+      }
+    },
+    "TestReport": {
+      "type": "object",
+      "required": [
+        "resource_usage",
+        "verdict"
+      ],
+      "properties": {
+        "resource_usage": {
+          "$ref": "#/definitions/ResourceUsage"
+        },
+        "verdict": {
+          "$ref": "#/definitions/Verdict"
+        }
+      }
+    },
+    "Verdict": {
+      "type": "string",
+      "enum": [
+        "CompileError",
+        "RuntimeError",
+        "MemoryLimitExceeded",
+        "TimeLimitExceeded",
+        "WrongAnswer",
+        "Skipped",
+        "Accepted"
+      ]
+    }
+  }
+}
