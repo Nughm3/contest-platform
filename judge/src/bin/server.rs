@@ -59,6 +59,7 @@ impl IntoResponse for SubmitError {
     }
 }
 
+#[tracing::instrument(skip(language_name, code), err)]
 async fn handler(
     TypedMultipart(SubmitRequest {
         contest: contest_name,

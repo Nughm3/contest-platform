@@ -19,12 +19,21 @@
 	let judgeError: string | undefined;
 
 	async function handleSubmit() {
-		loading = true;
-
 		const response = await fetch('/api/judge', {
 			method: 'POST',
 			body: new FormData(form)
 		});
+
+		if (!response.ok) {
+			judgeError = await response.text();
+			return;
+		}
+
+		loading = true;
+		status = 'Queued';
+		progress = 0;
+		brokenPipe = false;
+		tests = compileExitCode = compileStderr = lastVerdict = judgeError = undefined;
 
 		const reader = response
 			.body!.pipeThrough(new TextDecoderStream())
@@ -66,6 +75,12 @@
 	}
 </script>
 
+{#if judgeError}
+	<p>Judge internal error</p>
+	<p>{judgeError}</p>
+	<p>This is <em>usually</em> not a problem with your code. Please ask for technical support.</p>
+{/if}
+
 {#if !loading}
 	<form on:submit|preventDefault={handleSubmit} bind:this={form}>
 		<label for="language"></label>
@@ -84,12 +99,6 @@
 		<input type="submit" value="Submit" />
 	</form>
 {:else}
-	{#if judgeError}
-		<p>Judge internal error</p>
-		<p>{judgeError}</p>
-		<p>This is <em>usually</em> not a problem with your code. Please ask for technical support.</p>
-	{/if}
-
 	{#if compileExitCode}
 		<div>
 			<span>Compilation exited with code {compileExitCode}</span>
