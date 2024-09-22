@@ -1,4 +1,4 @@
-use std::{io::ErrorKind, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use axum::response::sse::Event;
 use color_eyre::eyre::WrapErr;
@@ -49,8 +49,6 @@ pub enum Message {
     Judging { verdict: Verdict },
     /// Tests were skipped due to exceeding resource usage
     Skipping { estimated_count: u32 },
-    /// Broken pipe error encountered, code may not be performing I/O correctly
-    BrokenPipe,
     /// Judging completed successfully (final)
     Done { report: Report },
     /// The judge experienced an internal error (final)
@@ -302,48 +300,35 @@ async fn run_test(
     skip_tx: watch::Sender<u8>,
     test: &Test,
 ) -> color_eyre::Result<TestReport> {
-    match state
+    let output = state
         .run(
             Profile::Run(state.config.resource_limits),
             test.input.as_bytes(),
         )
-        .await
-    {
-        Ok(output) => {
-            let status = output.exit_status();
-            let resource_usage = output.resource_usage();
+        .await?;
 
-            let verdict = if resource_usage.exceeded(state.config.resource_limits)
-                && status.code().is_none()
-            {
-                skip_tx.send_modify(|count| *count += 1);
-                if resource_usage.exceeded_time(state.config.resource_limits) {
-                    Verdict::TimeLimitExceeded
-                } else {
-                    Verdict::MemoryLimitExceeded
-                }
-            } else if status.success() {
-                match output.stdout_utf8() {
-                    Ok(stdout) if stdout.trim() == test.output.trim() => Verdict::Accepted,
-                    _ => Verdict::WrongAnswer,
-                }
+    let status = output.exit_status();
+    let resource_usage = output.resource_usage();
+
+    let verdict =
+        if resource_usage.exceeded(state.config.resource_limits) && status.code().is_none() {
+            skip_tx.send_modify(|count| *count += 1);
+            if resource_usage.exceeded_time(state.config.resource_limits) {
+                Verdict::TimeLimitExceeded
             } else {
-                Verdict::RuntimeError
-            };
+                Verdict::MemoryLimitExceeded
+            }
+        } else if status.success() {
+            match output.stdout_utf8() {
+                Ok(stdout) if stdout.trim() == test.output.trim() => Verdict::Accepted,
+                _ => Verdict::WrongAnswer,
+            }
+        } else {
+            Verdict::RuntimeError
+        };
 
-            Ok(TestReport {
-                verdict,
-                resource_usage,
-            })
-        }
-        Err(e) if matches!(e.kind(), ErrorKind::BrokenPipe) => {
-            tracing::warn!("broken pipe error, code may not be reading/writing data correctly");
-            state.send(Message::BrokenPipe).await;
-            Ok(TestReport {
-                verdict: Verdict::WrongAnswer,
-                resource_usage: ResourceUsage::default(),
-            })
-        }
-        Err(e) => Err(e.into()),
-    }
+    Ok(TestReport {
+        verdict,
+        resource_usage,
+    })
 }

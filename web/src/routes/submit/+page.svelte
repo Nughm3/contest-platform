@@ -15,7 +15,6 @@
 	let compileStderr: string | undefined;
 	let progress = 0;
 	let lastVerdict: Verdict | undefined;
-	let brokenPipe = false;
 	let judgeError: string | undefined;
 
 	async function handleSubmit() {
@@ -32,7 +31,6 @@
 		loading = true;
 		status = 'Queued';
 		progress = 0;
-		brokenPipe = false;
 		tests = compileExitCode = compileStderr = lastVerdict = judgeError = undefined;
 
 		const reader = response
@@ -61,9 +59,6 @@
 				case 'Judging':
 					progress++;
 					lastVerdict = message.verdict;
-					break;
-				case 'BrokenPipe':
-					brokenPipe = true;
 					break;
 				case 'Error':
 					judgeError = message.reason;
@@ -108,10 +103,6 @@
 				<pre><code> {compileStderr} </code></pre>
 			</div>
 		</div>
-	{/if}
-
-	{#if brokenPipe}
-		<p>Broken pipe error detected: check if your code is reading/writing correctly</p>
 	{/if}
 
 	{#if status}

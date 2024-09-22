@@ -46,12 +46,9 @@ pub async fn run(
         cmd.spawn()?
     };
 
-    child
-        .stdin
-        .take()
-        .expect("no stdin")
-        .write_all(stdin)
-        .await?;
+    if let Err(e) = child.stdin.take().expect("no stdin").write_all(stdin).await {
+        tracing::error!("failed to write stdin: {e}");
+    }
 
     let (stdout, stderr) = {
         let (mut stdout, mut stderr) = (
@@ -60,8 +57,13 @@ pub async fn run(
         );
         let (mut stdout_buf, mut stderr_buf) = (Vec::new(), Vec::new());
 
-        stdout.read_to_end(&mut stdout_buf).await?;
-        stderr.read_to_end(&mut stderr_buf).await?;
+        if let Err(e) = stdout.read_to_end(&mut stdout_buf).await {
+            tracing::error!("failed to read stdout: {e}");
+        }
+
+        if let Err(e) = stderr.read_to_end(&mut stderr_buf).await {
+            tracing::error!("failed to read stderr: {e}");
+        }
 
         (stdout_buf, stderr_buf)
     };

@@ -103,21 +103,6 @@
       }
     },
     {
-      "description": "Broken pipe error encountered, code may not be performing I/O correctly",
-      "type": "object",
-      "required": [
-        "type"
-      ],
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "BrokenPipe"
-          ]
-        }
-      }
-    },
-    {
       "description": "Judging completed successfully (final)",
       "type": "object",
       "required": [
