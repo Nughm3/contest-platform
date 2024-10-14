@@ -15,7 +15,7 @@ path = "src/bin/generate_json_schema.rs"
 [dependencies]
 ahash = "0.8.11"
 axum = "0.7.5"
-axum_typed_multipart = "0.12.1"
+axum_typed_multipart = "0.13.1"
 color-eyre = "0.6.3"
 dotenvy = "0.15.7"
 libc = "0.2.158"
