@@ -15,8 +15,8 @@ export const POST: RequestHandler = async ({ fetch, request }) => {
 	const reader = response.body!.getReader();
 	const decoder = new TextDecoder();
 
-	const parser = createParser((event) => {
-		if (event.type === 'event') {
+	const parser = createParser({
+		onEvent: (event) => {
 			const message: Message = JSON.parse(event.data);
 			if (message.type === 'Done') {
 				const report = message.report;

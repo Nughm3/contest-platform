@@ -28,7 +28,10 @@ services:
         source: ./data/contests
         target: /web/contests
         read_only: true
+      - type: bind
+        source: ./data/data.db
+        target: /web/data.db
     environment:
-      DATABASE_URL: ./data/data.db
-      CONTEST_DATA: ./data/contests
+      DATABASE_URL: data.db
+      CONTEST_DATA: contests
     restart: always

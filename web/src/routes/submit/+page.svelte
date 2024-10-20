@@ -41,7 +41,6 @@
 		while (true) {
 			const { value, done } = await reader.read();
 			if (done) break;
-			if (value.type !== 'event') continue;
 
 			const message: Message = JSON.parse(value.data);
 			status = message.type;

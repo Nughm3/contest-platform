@@ -1,10 +1,15 @@
-use std::{path::Path, process::Stdio};
+use std::{
+    path::Path,
+    process::{ExitStatus, Stdio},
+    str,
+};
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt, Error, ErrorKind, Result};
+pub use resource::{ResourceLimits, ResourceUsage};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt, Error, ErrorKind},
+    process::Command,
+};
 
-pub use self::{command::*, resource::*};
-
-mod command;
 mod resource;
 mod seccomp;
 
@@ -14,17 +19,70 @@ pub enum Profile {
     Run(ResourceLimits),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Output {
+    exit_status: ExitStatus,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    resource_usage: ResourceUsage,
+}
+
+impl Output {
+    pub fn new(
+        exit_status: ExitStatus,
+        stdout: Vec<u8>,
+        stderr: Vec<u8>,
+        resource_usage: ResourceUsage,
+    ) -> Self {
+        Self {
+            exit_status,
+            stdout,
+            stderr,
+            resource_usage,
+        }
+    }
+
+    pub fn exit_status(&self) -> ExitStatus {
+        self.exit_status
+    }
+
+    pub fn stdout(&self) -> &[u8] {
+        &self.stdout
+    }
+
+    pub fn stdout_utf8(&self) -> Result<&str, str::Utf8Error> {
+        str::from_utf8(self.stdout())
+    }
+
+    pub fn stderr(&self) -> &[u8] {
+        &self.stderr
+    }
+
+    pub fn stderr_utf8(&self) -> Result<&str, str::Utf8Error> {
+        str::from_utf8(self.stderr())
+    }
+
+    pub fn resource_usage(&self) -> ResourceUsage {
+        self.resource_usage
+    }
+}
+
 pub async fn run(
     dir: impl AsRef<Path>,
-    command: &Command,
+    command: &[String],
     stdin: &[u8],
     profile: Profile,
-) -> Result<Output> {
+) -> Result<Output, Error> {
     let dir = dir.as_ref();
 
     let mut child = {
-        let mut cmd = command.create();
-        cmd.current_dir(dir)
+        let (executable, args) = command
+            .split_first()
+            .ok_or_else(|| Error::new(ErrorKind::NotFound, "empty command"))?;
+
+        let mut cmd = Command::new(executable);
+        cmd.args(args)
+            .current_dir(dir)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());

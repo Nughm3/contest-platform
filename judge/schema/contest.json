@@ -1,0 +1,158 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contest",
+  "type": "object",
+  "required": [
+    "judge",
+    "name",
+    "tasks"
+  ],
+  "properties": {
+    "judge": {
+      "$ref": "#/definitions/Config"
+    },
+    "name": {
+      "type": "string"
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Task"
+      }
+    }
+  },
+  "definitions": {
+    "Config": {
+      "type": "object",
+      "required": [
+        "languages",
+        "resource-limits",
+        "skip-count"
+      ],
+      "properties": {
+        "languages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Language"
+          }
+        },
+        "resource-limits": {
+          "$ref": "#/definitions/ResourceLimits"
+        },
+        "skip-count": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      }
+    },
+    "Language": {
+      "type": "object",
+      "required": [
+        "filename",
+        "name",
+        "run"
+      ],
+      "properties": {
+        "compile": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "filename": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "run": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ResourceLimits": {
+      "type": "object",
+      "required": [
+        "cpu",
+        "cpu-tolerance",
+        "memory",
+        "memory-tolerance"
+      ],
+      "properties": {
+        "cpu": {
+          "description": "CPU time (seconds)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "cpu-tolerance": {
+          "description": "CPU time tolerance (seconds)",
+          "type": "number",
+          "format": "double"
+        },
+        "memory": {
+          "description": "Memory usage (bytes)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "memory-tolerance": {
+          "description": "Memory usage tolerance (bytes)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      }
+    },
+    "Subtask": {
+      "type": "object",
+      "required": [
+        "tests"
+      ],
+      "properties": {
+        "tests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Test"
+          }
+        }
+      }
+    },
+    "Task": {
+      "type": "object",
+      "required": [
+        "subtasks"
+      ],
+      "properties": {
+        "subtasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Subtask"
+          }
+        }
+      }
+    },
+    "Test": {
+      "type": "object",
+      "required": [
+        "input",
+        "output"
+      ],
+      "properties": {
+        "input": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

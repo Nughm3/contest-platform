@@ -34,7 +34,7 @@ impl ResourceUsage {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct ResourceLimits {
     /// CPU time (seconds)
