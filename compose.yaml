@@ -30,4 +30,5 @@ services:
         read_only: true
     environment:
       DATABASE_URL: ./data/data.db
+      CONTEST_DATA: ./data/contests
     restart: always

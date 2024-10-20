@@ -10,8 +10,7 @@ export const POST: RequestHandler = async ({ fetch, request }) => {
 		body: formData
 	});
 
-	if (!response.ok)
-		return response;
+	if (!response.ok) return response;
 
 	const reader = response.body!.getReader();
 	const decoder = new TextDecoder();

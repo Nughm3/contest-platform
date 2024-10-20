@@ -1,11 +1,11 @@
-FROM node:slim AS build
+FROM node:latest AS build
 
 WORKDIR /build
 
 # Set up pnpm
-ENV PNPM_HOME="/pnpm"
+ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable 
+RUN corepack enable
 
 # Install dependencies
 RUN rm -rf node_modules
@@ -17,7 +17,7 @@ RUN pnpm install
 COPY . .
 RUN pnpm build
 
-FROM node:slim AS final
+FROM node:latest AS final
 
 WORKDIR /web
 
