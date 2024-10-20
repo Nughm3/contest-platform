@@ -13,7 +13,7 @@ RUN rm -rf src
 
 # Build binary
 COPY . .
-RUN touch -am src/bin/server.rs
+RUN touch -am src/bin/*
 RUN cargo build --bin server --release
 
 FROM debian:stable-slim AS final

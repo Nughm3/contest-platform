@@ -4,13 +4,19 @@ use axum::response::sse::Event;
 use color_eyre::eyre::WrapErr;
 use schemars::JsonSchema;
 use serde::Serialize;
-use tokio::{sync::watch, task::JoinSet};
+use tokio::{
+    sync::{watch, Semaphore},
+    task::JoinSet,
+};
 use yansi::Paint;
 
 use crate::{
     contest::{Config, Language, Task, Test},
     sandbox::{run, Output, Profile, ResourceUsage},
 };
+
+const MAX_CONCURRENT_SUBMISSIONS: usize = 5;
+static RATE_LIMIT: Semaphore = Semaphore::const_new(MAX_CONCURRENT_SUBMISSIONS);
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct Report {
@@ -81,10 +87,13 @@ impl State {
     }
 
     async fn send(&self, message: Message) {
-        self.tx
+        if let Err(e) = self
+            .tx
             .send(Ok(Event::default().json_data(message).unwrap()))
             .await
-            .expect("channel closed");
+        {
+            tracing::error!("failed to send message: {e}");
+        }
     }
 }
 
@@ -109,6 +118,8 @@ pub async fn submit(
             tests: task.subtasks.iter().map(|s| s.tests.len() as u32).sum(),
         })
         .await;
+
+    let _permit = RATE_LIMIT.acquire().await.expect("semaphore closed");
 
     if let Err(report) = submit_inner(state.clone()).await {
         tracing::error!("{report:?}");
