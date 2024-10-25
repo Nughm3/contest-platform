@@ -5,9 +5,14 @@
  * and run json-schema-to-typescript to regenerate this file.
  */
 
+export type Difficulty = "Easy" | "Medium" | "Hard";
+
 export interface Contest {
+  duration: number;
   judge: Config;
   name: string;
+  page: string;
+  "submission-cooldown": number;
   tasks: Task[];
   [k: string]: unknown;
 }
@@ -44,6 +49,9 @@ export interface ResourceLimits {
   [k: string]: unknown;
 }
 export interface Task {
+  difficulty: Difficulty;
+  name: string;
+  page: string;
   subtasks: Subtask[];
   [k: string]: unknown;
 }

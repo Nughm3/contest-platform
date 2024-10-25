@@ -3,9 +3,15 @@ use serde::Deserialize;
 
 use crate::sandbox::ResourceLimits;
 
+// NOTE: not all fields are used by the judge server, but are included to generate a JSON Schema
+
 #[derive(Debug, Clone, PartialEq, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
 pub struct Contest {
     pub name: String,
+    pub duration: u32,
+    pub submission_cooldown: u32,
+    pub page: String,
     pub tasks: Vec<Task>,
     #[serde(rename = "judge")]
     pub config: Config,
@@ -13,7 +19,17 @@ pub struct Contest {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, JsonSchema)]
 pub struct Task {
+    pub name: String,
+    pub difficulty: Difficulty,
+    pub page: String,
     pub subtasks: Vec<Subtask>,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, JsonSchema)]
+pub enum Difficulty {
+    Easy,
+    Medium,
+    Hard,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, JsonSchema)]

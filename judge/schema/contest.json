@@ -3,16 +3,32 @@
   "title": "Contest",
   "type": "object",
   "required": [
+    "duration",
     "judge",
     "name",
+    "page",
+    "submission-cooldown",
     "tasks"
   ],
   "properties": {
+    "duration": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
     "judge": {
       "$ref": "#/definitions/Config"
     },
     "name": {
       "type": "string"
+    },
+    "page": {
+      "type": "string"
+    },
+    "submission-cooldown": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
     },
     "tasks": {
       "type": "array",
@@ -45,6 +61,14 @@
           "minimum": 0.0
         }
       }
+    },
+    "Difficulty": {
+      "type": "string",
+      "enum": [
+        "Easy",
+        "Medium",
+        "Hard"
+      ]
     },
     "Language": {
       "type": "object",
@@ -128,9 +152,21 @@
     "Task": {
       "type": "object",
       "required": [
+        "difficulty",
+        "name",
+        "page",
         "subtasks"
       ],
       "properties": {
+        "difficulty": {
+          "$ref": "#/definitions/Difficulty"
+        },
+        "name": {
+          "type": "string"
+        },
+        "page": {
+          "type": "string"
+        },
         "subtasks": {
           "type": "array",
           "items": {

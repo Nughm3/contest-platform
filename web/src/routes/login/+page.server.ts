@@ -1,6 +1,6 @@
 import { lucia } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { user, session } from '$lib/server/db/schema';
+import { user } from '$lib/server/db/schema';
 import { fail, redirect } from '@sveltejs/kit';
 import { verify } from '@node-rs/argon2';
 
@@ -52,6 +52,6 @@ export const actions: Actions = {
 			...sessionCookie.attributes
 		});
 
-		redirect(302, redirectURL.toString());
+		redirect(302, encodeURI(`/${redirectURL.slice(1)}`));
 	}
 };
