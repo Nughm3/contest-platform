@@ -7,14 +7,16 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	default: async (event) => {
-		if (!event.locals.session) return fail(401);
-		await lucia.invalidateSession(event.locals.session.id);
+	default: async ({ locals, cookies }) => {
+		if (!locals.session) return fail(401);
+
+		await lucia.invalidateSession(locals.session.id);
 		const sessionCookie = lucia.createBlankSessionCookie();
-		event.cookies.set(sessionCookie.name, sessionCookie.value, {
+		cookies.set(sessionCookie.name, sessionCookie.value, {
 			path: '.',
 			...sessionCookie.attributes
 		});
-		redirect(302, '/login');
+
+		redirect(302, '/auth/login');
 	}
 };

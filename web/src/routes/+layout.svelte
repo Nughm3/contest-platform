@@ -11,7 +11,9 @@
 
 	let { data, children }: Props = $props();
 
-	const redirect = $page.url.pathname + $page.url.search;
+	const redirectURL = $page.url.pathname + $page.url.search;
+	const redirectParam =
+		redirectURL === '/' || redirectURL.slice(0, 5) === '/auth' ? '' : '?redirect={redirectURL}';
 </script>
 
 <main class="mx-auto my-8 w-full max-w-5xl">
@@ -23,10 +25,10 @@
 
 			<ul>
 				{#if data.user}
-					<form method="POST" action="/logout"><button>Log out</button></form>
+					<form method="POST" action="/auth/logout"><button>Log out</button></form>
 				{:else}
-					<a href="/signup?redirect={redirect}">Sign up</a>
-					<a href="/login?redirect={redirect}">Log in</a>
+					<a href="/auth/signup{redirectParam}">Sign up</a>
+					<a href="/auth/login{redirectParam}">Log in</a>
 				{/if}
 			</ul>
 		</nav>

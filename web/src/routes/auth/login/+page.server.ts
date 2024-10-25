@@ -13,7 +13,7 @@ export const actions: Actions = {
 		const username = formData.get('username');
 		const password = formData.get('password');
 		let redirectURL = formData.get('redirect') ?? '/';
-		if (redirectURL === '/login') redirectURL = '/';
+		if (redirectURL.slice(0, 5) === '/auth') redirectURL = '/';
 
 		if (typeof username !== 'string') {
 			return fail(400, {
