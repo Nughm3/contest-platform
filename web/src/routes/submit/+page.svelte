@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { preventDefault } from 'svelte/legacy';
+
 	import type { Message, Verdict } from '$lib/judge/schema';
 	import { EventSourceParserStream } from 'eventsource-parser/stream';
 
@@ -6,16 +8,16 @@
 	const task = '1';
 	const languages = ['C 99', 'C++ 17', 'Python 3'];
 
-	let form: HTMLFormElement;
-	let loading = false;
+	let form: HTMLFormElement = $state();
+	let loading = $state(false);
 
-	let status: string | undefined;
-	let tests: number | undefined;
-	let compileExitCode: number | undefined;
-	let compileStderr: string | undefined;
-	let progress = 0;
-	let lastVerdict: Verdict | undefined;
-	let judgeError: string | undefined;
+	let status: string | undefined = $state();
+	let tests: number | undefined = $state();
+	let compileExitCode: number | undefined = $state();
+	let compileStderr: string | undefined = $state();
+	let progress = $state(0);
+	let lastVerdict: Verdict | undefined = $state();
+	let judgeError: string | undefined = $state();
 
 	async function handleSubmit() {
 		const response = await fetch('/api/judge', {
@@ -76,7 +78,7 @@
 {/if}
 
 {#if !loading}
-	<form on:submit|preventDefault={handleSubmit} bind:this={form}>
+	<form onsubmit={preventDefault(handleSubmit)} bind:this={form}>
 		<label for="language"></label>
 		<select name="language" id="language" required>
 			{#each languages as language}

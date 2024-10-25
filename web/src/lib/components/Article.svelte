@@ -1,8 +1,12 @@
 <script lang="ts">
 	import 'katex/dist/katex.min.css';
 
-	export let title: string;
-	export let page: string;
+	interface Props {
+		title: string;
+		page: string;
+	}
+
+	let { title, page }: Props = $props();
 </script>
 
 <article class="prose">

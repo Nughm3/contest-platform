@@ -1,9 +1,15 @@
 <script lang="ts">
 	import '../app.css';
-	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
+	import type { LayoutData } from './$types';
+	import type { Snippet } from 'svelte';
 
-	export let data: LayoutData;
+	interface Props {
+		data: LayoutData;
+		children: Snippet;
+	}
+
+	let { data, children }: Props = $props();
 
 	const redirect = $page.url.pathname + $page.url.search;
 </script>
@@ -26,5 +32,5 @@
 		</nav>
 	</header>
 
-	<slot />
+	{@render children()}
 </main>
