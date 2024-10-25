@@ -12,7 +12,8 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const username = formData.get('username');
 		const password = formData.get('password');
-		const redirectURL = formData.get('redirect') ?? '/';
+		let redirectURL = formData.get('redirect') ?? '/';
+		if (redirectURL === '/login') redirectURL = '/';
 
 		if (typeof username !== 'string') {
 			return fail(400, {
@@ -33,7 +34,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const validPassword = await verify(existingUser.password_hash, password, {
+		const validPassword = await verify(existingUser.passwordHash, password, {
 			memoryCost: 19456,
 			timeCost: 2,
 			outputLen: 32,

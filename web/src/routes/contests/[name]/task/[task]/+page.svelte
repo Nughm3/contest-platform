@@ -9,3 +9,5 @@
 
 	let { data }: Props = $props();
 </script>
+
+<Article title={data.name} page={data.page} />

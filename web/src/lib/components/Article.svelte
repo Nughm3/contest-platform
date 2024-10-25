@@ -9,7 +9,7 @@
 	let { title, page }: Props = $props();
 </script>
 
-<article class="prose">
+<article class="prose max-w-full">
 	<h1>{title}</h1>
 
 	{@html page}

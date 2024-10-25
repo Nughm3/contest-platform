@@ -12,7 +12,7 @@ async function initializeContests() {
 			const name = path.parse(filename).name;
 			const contents = await fs.readFile(path.join(CONTEST_DATA, filename), { encoding: 'utf8' });
 			let contest: Contest = JSON.parse(contents);
-			contest.tasks.map(task => task.subtasks = []);
+			contest.tasks.map((task) => (task.subtasks = []));
 			contestData.set(name, contest);
 		}
 	}
@@ -21,7 +21,7 @@ async function initializeContests() {
 }
 
 export async function getContest(name: string) {
-	return await initializeContests().then(c => c.get(name));
+	return await initializeContests().then((c) => c.get(name));
 }
 
 export async function listContests() {
