@@ -1,14 +1,17 @@
 <script lang="ts">
-	import { preventDefault } from 'svelte/legacy';
-
-	import type { Message, Verdict } from '$lib/judge/schema';
+	import Article from '$lib/components/Article.svelte';
 	import { EventSourceParserStream } from 'eventsource-parser/stream';
+	import { page } from '$app/stores';
+	import type { Message, Verdict } from '$lib/judge/schema';
+	import type { PageData } from './$types';
 
-	const contest = 'contest-2';
-	const task = '1';
-	const languages = ['C 99', 'C++ 17', 'Python 3'];
+	interface Props {
+		data: PageData;
+	}
 
-	let form: HTMLFormElement = $state();
+	let { data }: Props = $props();
+
+	let formElement: HTMLFormElement | undefined = $state();
 	let loading = $state(false);
 
 	let status: string | undefined = $state();
@@ -19,10 +22,10 @@
 	let lastVerdict: Verdict | undefined = $state();
 	let judgeError: string | undefined = $state();
 
-	async function handleSubmit() {
-		const response = await fetch('/api/judge', {
+	async function onsubmit() {
+		const response = await fetch($page.url, {
 			method: 'POST',
-			body: new FormData(form)
+			body: new FormData(formElement)
 		});
 
 		if (!response.ok) {
@@ -71,48 +74,50 @@
 	}
 </script>
 
-{#if judgeError}
-	<p>Judge internal error</p>
-	<p>{judgeError}</p>
-	<p>This is <em>usually</em> not a problem with your code. Please ask for technical support.</p>
-{/if}
+<Article title={data.name} page={data.page} />
 
-{#if !loading}
-	<form onsubmit={preventDefault(handleSubmit)} bind:this={form}>
-		<label for="language"></label>
-		<select name="language" id="language" required>
-			{#each languages as language}
-				<option>{language}</option>
-			{/each}
-		</select>
+<hr class="my-4" />
 
-		<label for="code">Upload code</label>
-		<input type="file" name="code" id="code" required />
+<section id="submit">
+	<p class="mb-4 text-3xl font-bold">Submit</p>
 
-		<input type="hidden" name="contest" value={contest} />
-		<input type="hidden" name="task" value={task} />
+	{#if judgeError}
+		<p>Judge internal error</p>
+		<p>{judgeError}</p>
+		<p>This is not a problem with your code. Please ask for technical support.</p>
+	{/if}
 
-		<input type="submit" value="Submit" />
-	</form>
-{:else}
-	{#if compileExitCode}
-		<div>
-			<span>Compilation exited with code {compileExitCode}</span>
+	{#if !loading}
+		<form {onsubmit} bind:this={formElement}>
+			<select name="language" id="language">
+				{#each data.languages as language}
+					<option>{language}</option>
+				{/each}
+			</select>
 
+			<input type="file" name="code" id="code" />
+			<input type="submit" value="Submit" />
+		</form>
+	{:else}
+		{#if compileExitCode}
 			<div>
-				<span>Compiler output</span>
-				<pre><code> {compileStderr} </code></pre>
+				<span>Compilation exited with code {compileExitCode}</span>
+
+				<div>
+					<span>Compiler output</span>
+					<pre><code>{compileStderr}</code></pre>
+				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
 
-	{#if status}
-		<span>{status.toUpperCase()}</span>
-	{/if}
+		{#if status}
+			<span>{status.toUpperCase()}</span>
+		{/if}
 
-	{#if lastVerdict}
-		<span>{lastVerdict}</span>
-	{/if}
+		{#if lastVerdict}
+			<span>{lastVerdict}</span>
+		{/if}
 
-	<progress max={tests} value={progress}></progress>
-{/if}
+		<progress max={tests} value={progress}></progress>
+	{/if}
+</section>

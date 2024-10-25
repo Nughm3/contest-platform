@@ -1,13 +1,18 @@
 import type { Message } from '$lib/judge/schema';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createParser } from 'eventsource-parser';
 
-export const POST: RequestHandler = async ({ fetch, request }) => {
+export const POST: RequestHandler = async ({ fetch, request, params, locals }) => {
+	if (!locals.user) error(401);
+
 	const formData = await request.formData();
+	formData.append('contest', params.contest);
+	formData.append('task', params.task);
 
 	const response = await fetch('http://localhost:8128', {
 		method: 'POST',
-		body: formData
+		body: formData,
 	});
 
 	if (!response.ok) return response;

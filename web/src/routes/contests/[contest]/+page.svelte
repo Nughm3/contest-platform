@@ -20,7 +20,7 @@
 	<ol class="ml-8 list-decimal">
 		{#each data.tasks as task, i}
 			<li>
-				<a href={`${$page.url}/task/${i}`} class="underline">{task}</a>
+				<a href={`${$page.url}/task/${i + 1}`} class="underline">{task}</a>
 			</li>
 		{/each}
 	</ol>

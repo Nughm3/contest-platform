@@ -1,10 +1,10 @@
 import type { PageServerLoad } from './$types';
 import { getContest } from '$lib/server/contest/load';
-import { fail } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const contest = await getContest(params.name);
-	if (!contest) throw fail(404);
+	const contest = await getContest(params.contest);
+	if (!contest) error(404);
 
 	return {
 		name: contest.name,
