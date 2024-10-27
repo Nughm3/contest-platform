@@ -84,7 +84,7 @@
 	<p class="mb-4 text-3xl font-bold">Submit</p>
 
 	{#if judgeError}
-		<p>Judge internal error</p>
+		<strong>Judge internal error</strong>
 		<p>{judgeError}</p>
 		<p>This is not a problem with your code. Please ask for technical support.</p>
 	{/if}
@@ -122,4 +122,16 @@
 
 		<progress max={tests} value={progress}></progress>
 	{/if}
+</section>
+
+<hr class="my-4" />
+
+<section id="submissions">
+	<p class="mb-4 text-3xl font-bold">Previous submissions</p>
+
+	<ul class="ml-8 list-disc">
+		{#each data.submissions as submission}
+			<li>{submission.verdict}</li>
+		{/each}
+	</ul>
 </section>

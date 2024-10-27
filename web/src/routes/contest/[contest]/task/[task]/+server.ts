@@ -30,7 +30,7 @@ export const POST: RequestHandler = async ({ fetch, request, params, locals }) =
 	const reader = response.body!.getReader();
 	const decoder = new TextDecoder();
 
-	const codeFile = <File>formData.get("code")!;
+	const codeFile = <File>formData.get('code')!;
 	const code = await codeFile.text();
 
 	const parser = createParser({
@@ -39,17 +39,14 @@ export const POST: RequestHandler = async ({ fetch, request, params, locals }) =
 			if (message.type === 'Done') {
 				const report = message.report;
 
-				const submission = 
-					await db.insert(submissions).values({
-						userId: locals.user!.id,
-						contestId: contest.id,
-						task: parseInt(params.task),
-						code,
-						language: formData.get('language')!.toString(),
-						verdict: report.task,
-					})
-				;
-
+				const submission = await db.insert(submissions).values({
+					userId: locals.user!.id,
+					contestId: contest.id,
+					task: parseInt(params.task),
+					code,
+					language: formData.get('language')!.toString(),
+					verdict: report.task
+				});
 				const testValues = report.tests.flatMap((tests, subtask) =>
 					tests.map((test, index) => ({
 						submissionId: Number(submission.lastInsertRowid),
@@ -57,7 +54,7 @@ export const POST: RequestHandler = async ({ fetch, request, params, locals }) =
 						index: index + 1,
 						runtime: durationToMilliseconds(test.resource_usage),
 						memory: test.resource_usage.memory,
-						verdict: test.verdict,
+						verdict: test.verdict
 					}))
 				);
 
@@ -88,5 +85,10 @@ export const POST: RequestHandler = async ({ fetch, request, params, locals }) =
 };
 
 function durationToMilliseconds(resourceUsage: ResourceUsage): number {
-	return resourceUsage['sys-time'].secs * 1000 + resourceUsage['sys-time'].nanos / 1e6 + resourceUsage['user-time'].secs * 1000 + resourceUsage['user-time'].nanos / 1e6;
+	return (
+		resourceUsage['sys-time'].secs * 1000 +
+		resourceUsage['sys-time'].nanos / 1e6 +
+		resourceUsage['user-time'].secs * 1000 +
+		resourceUsage['user-time'].nanos / 1e6
+	);
 }

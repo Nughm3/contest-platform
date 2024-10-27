@@ -24,23 +24,23 @@ export const admins = sqliteTable('admins', {
 
 export const contests = sqliteTable('contests', {
 	id: integer('id').primaryKey(),
-	name: text('name').notNull(),
+	name: text('name').notNull().unique(),
 	started: integer('started', { mode: 'timestamp' })
 		.notNull()
 		.default(sql`(unixepoch())`)
 });
 
 const verdict = text('verdict', {
-		enum: [
-			'CompileError',
-			'RuntimeError',
-			'MemoryLimitExceeded',
-			'TimeLimitExceeded',
-			'WrongAnswer',
-			'Skipped',
-			'Accepted'
-		]
-	}).notNull();
+	enum: [
+		'CompileError',
+		'RuntimeError',
+		'MemoryLimitExceeded',
+		'TimeLimitExceeded',
+		'WrongAnswer',
+		'Skipped',
+		'Accepted'
+	]
+}).notNull();
 
 export const submissions = sqliteTable('submissions', {
 	id: integer('id').primaryKey(),
@@ -56,7 +56,7 @@ export const submissions = sqliteTable('submissions', {
 	task: integer('task').notNull(),
 	code: text('code').notNull(),
 	language: text('language').notNull(),
-	verdict,
+	verdict
 });
 
 export const tests = sqliteTable('tests', {
@@ -68,5 +68,5 @@ export const tests = sqliteTable('tests', {
 	index: integer('index').notNull(),
 	runtime: real('runtime').notNull(),
 	memory: integer('memory').notNull(),
-	verdict,
+	verdict
 });
