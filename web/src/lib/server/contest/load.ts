@@ -5,7 +5,7 @@ import type { Contest } from './schema';
 
 let contestData: Map<string, Contest> | undefined;
 
-async function initializeContests() {
+export async function getContests() {
 	if (!contestData) {
 		contestData = new Map();
 		for (const filename of await fs.readdir(CONTEST_DATA)) {
@@ -21,10 +21,5 @@ async function initializeContests() {
 }
 
 export async function getContest(name: string) {
-	return await initializeContests().then((c) => c.get(name));
-}
-
-export async function listContests() {
-	const contests = await initializeContests();
-	return Array.from(contests.keys());
+	return await getContests().then((c) => c.get(name));
 }

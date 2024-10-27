@@ -4,7 +4,7 @@
 
 	const redirectURL = $page.url.searchParams.get('redirect') ?? '/';
 	const redirectParam =
-		redirectURL === '/' || redirectURL.slice(0, 5) === '/auth' ? '' : '?redirect={redirectURL}';
+		redirectURL === '/' || redirectURL.slice(0, 5) === '/auth' ? '' : `?redirect=${redirectURL}`;
 </script>
 
 <h1>Log in</h1>

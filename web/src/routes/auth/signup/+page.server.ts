@@ -1,6 +1,6 @@
 import { lucia } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { users } from '$lib/server/db/schema';
 import { fail, redirect } from '@sveltejs/kit';
 import { generateIdFromEntropySize } from 'lucia';
 import { hash } from '@node-rs/argon2';
@@ -8,8 +8,8 @@ import { hash } from '@node-rs/argon2';
 import type { Actions } from './$types';
 
 export const actions: Actions = {
-	default: async (event) => {
-		const formData = await event.request.formData();
+	default: async ({ request, cookies }) => {
+		const formData = await request.formData();
 		const username = formData.get('username');
 		const password = formData.get('password');
 		let redirectURL = formData.get('redirect') ?? '/';
@@ -41,18 +41,19 @@ export const actions: Actions = {
 		});
 
 		try {
-			await db.insert(user).values({
+			await db.insert(users).values({
 				id: userId,
 				username,
 				passwordHash
 			});
 		} catch (e) {
+			console.log(e);
 			return fail(409, { message: 'Username taken' });
 		}
 
 		const session = await lucia.createSession(userId, {});
 		const sessionCookie = lucia.createSessionCookie(session.id);
-		event.cookies.set(sessionCookie.name, sessionCookie.value, {
+		cookies.set(sessionCookie.name, sessionCookie.value, {
 			path: '.',
 			...sessionCookie.attributes
 		});

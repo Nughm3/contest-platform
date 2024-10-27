@@ -1,9 +1,9 @@
 import { lucia } from '$lib/server/auth';
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	return redirect(302, '/');
+	redirect(302, '/');
 };
 
 export const actions: Actions = {

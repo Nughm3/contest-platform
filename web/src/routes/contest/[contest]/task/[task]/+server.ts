@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ fetch, request, params, locals }) =
 
 	const response = await fetch('http://localhost:8128', {
 		method: 'POST',
-		body: formData,
+		body: formData
 	});
 
 	if (!response.ok) return response;
