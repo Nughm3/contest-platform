@@ -22,7 +22,9 @@
 	let lastVerdict: Verdict | undefined = $state();
 	let judgeError: string | undefined = $state();
 
-	async function onsubmit() {
+	async function onsubmit(event: Event) {
+		event.preventDefault();
+
 		const response = await fetch($page.url, {
 			method: 'POST',
 			body: new FormData(formElement)
