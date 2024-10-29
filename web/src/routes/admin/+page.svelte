@@ -1,6 +1,7 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
+	import { Heading } from 'flowbite-svelte';
+	import type { PageData } from './$types';
 
 	interface Props {
 		data: PageData;
@@ -9,7 +10,7 @@
 	let { data }: Props = $props();
 </script>
 
-<p class="mb-4 text-3xl font-bold">Admin</p>
+<Heading tag="h2" class="mb-6">Admin</Heading>
 
 <section id="contests">
 	<table class="mx-auto">

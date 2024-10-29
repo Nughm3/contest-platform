@@ -1,20 +1,24 @@
-import type { Message, ResourceUsage } from '$lib/judge/schema';
 import { error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { createParser } from 'eventsource-parser';
 import { db } from '$lib/server/db';
 import { contests, submissions, tests } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { getContest } from '$lib/server/contest/load';
+import type { Message, ResourceUsage } from '$lib/judge/schema';
+import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ fetch, request, params, locals }) => {
 	if (!locals.user) error(401);
 
+	const contestData = await getContest(params.contest);
+	if (!contestData) error(500, { message: 'contest does not exist' });
+
 	const contest = db
 		.select({ id: contests.id })
 		.from(contests)
-		.where(eq(contests.name, params.contest))
+		.where(eq(contests.slug, params.contest))
 		.get();
-	if (!contest) error(500, { message: 'contest does not exist' });
+	if (!contest) error(500, { message: 'contest not started' });
 
 	const formData = await request.formData();
 	formData.set('contest', params.contest);
@@ -39,14 +43,24 @@ export const POST: RequestHandler = async ({ fetch, request, params, locals }) =
 			if (message.type === 'Done') {
 				const report = message.report;
 
+				const subtaskScore = report.subtasks
+					.map((verdict) => (verdict === 'Accepted' ? contestData.scoring['subtask-score'] : 0))
+					.reduce((acc, subtaskScore) => acc + subtaskScore, 0);
+				const testScore =
+					report.tests.flatMap((subtask) => subtask).filter((test) => test.verdict === 'Accepted')
+						.length * contestData.scoring['test-score'];
+				const score = subtaskScore + testScore;
+
 				const submission = await db.insert(submissions).values({
 					userId: locals.user!.id,
 					contestId: contest.id,
 					task: parseInt(params.task),
 					code,
 					language: formData.get('language')!.toString(),
+					score,
 					verdict: report.task
 				});
+
 				const testValues = report.tests.flatMap((tests, subtask) =>
 					tests.map((test, index) => ({
 						submissionId: Number(submission.lastInsertRowid),

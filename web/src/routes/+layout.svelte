@@ -2,9 +2,11 @@
 	import '../app.css';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import User from 'lucide-svelte/icons/user';
+	import { Button, Dropdown, DropdownItem } from 'flowbite-svelte';
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
-	import { Trophy, ChevronDown } from 'lucide-svelte';
 
 	interface Props {
 		data: LayoutData;
@@ -28,42 +30,39 @@
 			<nav class="mb-8 mt-4 flex items-center justify-between">
 				<div class="flex items-center space-x-2">
 					<a href="/" class="text-2xl font-bold hover:underline">Contest Platform</a>
+
 					{#if data.contest}
 						<span class="text-slate-600">|</span>
-						<a href={`/contest/${data.contest.slug}`} class="text-slate-800 hover:underline"
-							>{data.contest.name}</a
-						>
+						<a href={`/contest/${data.contest.slug}`} class="text-slate-600 hover:underline">
+							{data.contest.name}
+						</a>
 					{/if}
 				</div>
 
-				<div class="flex items-center space-x-2">
+				<div class="flex items-center space-x-4">
 					{#if data.username}
-						{#if data.contest}
-							<a
-								href={'/contest/' + data.contest.slug + '/leaderboard'}
-								class="flex items-center space-x-1 text-slate-600"
-							>
-								<Trophy size="20" class="inline-block" />
-								<span class="hover:underline">Leaderboard</span>
-							</a>
-							<span class="text-slate-600">|</span>
-						{/if}
-						{#if data.isAdmin}
-							<a
-								href="/admin"
-								class="rounded-md bg-red-500 p-1 text-xs font-medium text-white hover:bg-red-600"
-								>ADMIN</a
-							>
-						{/if}
-						<form method="POST" action="/auth/logout" class="inline-block" use:enhance>
-							<button class="flex items-center space-x-1">
-								<span class="hover:underline">Log out</span>
+						{#if data.contest}{/if}
+
+						<div>
+							<Button color="alternative" class="flex items-center space-x-1">
+								<User size="20" class="inline-block" />
+								<strong>{data.username}</strong>
 								<ChevronDown size="20" class="inline-block" />
-							</button>
-						</form>
+							</Button>
+							<Dropdown>
+								{#if data.isAdmin}
+									<DropdownItem><a href="/admin">Admin</a></DropdownItem>
+								{/if}
+								<DropdownItem>
+									<form method="POST" action="/auth/logout" class="inline-block" use:enhance>
+										<input type="submit" value="Log out" />
+									</form>
+								</DropdownItem>
+							</Dropdown>
+						</div>
 					{:else}
-						<a href="/auth/signup{redirectParam}" class="hover:underline">Sign up</a>
-						<a href="/auth/login{redirectParam}" class="hover:underline">Log in</a>
+						<a href="/auth/login{redirectParam}"><Button color="alternative">Log in</Button></a>
+						<a href="/auth/signup{redirectParam}"><Button>Sign up</Button></a>
 					{/if}
 				</div>
 			</nav>

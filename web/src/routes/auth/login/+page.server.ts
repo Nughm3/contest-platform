@@ -3,9 +3,8 @@ import { db } from '$lib/server/db';
 import { admins, users } from '$lib/server/db/schema';
 import { fail, redirect } from '@sveltejs/kit';
 import { verify } from '@node-rs/argon2';
-
-import type { Actions } from './$types';
 import { eq } from 'drizzle-orm';
+import type { Actions } from './$types';
 
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
@@ -17,19 +16,19 @@ export const actions: Actions = {
 
 		if (typeof username !== 'string') {
 			return fail(400, {
-				message: 'Invalid username'
+				error: 'Invalid username'
 			});
 		}
 		if (typeof password !== 'string') {
 			return fail(400, {
-				message: 'Invalid password'
+				error: 'Invalid password'
 			});
 		}
 
 		const existingUser = db.select().from(users).where(eq(users.username, username)).get();
 		if (!existingUser) {
 			return fail(400, {
-				message: 'Incorrect username or password'
+				error: 'Incorrect username or password'
 			});
 		}
 
@@ -40,9 +39,7 @@ export const actions: Actions = {
 			parallelism: 1
 		});
 		if (!validPassword) {
-			return fail(400, {
-				message: 'Incorrect username or password'
-			});
+			return fail(400, { error: 'Incorrect username or password' });
 		}
 
 		const session = await lucia.createSession(existingUser.id, {});

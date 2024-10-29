@@ -12,6 +12,7 @@ export interface Contest {
   judge: Config;
   name: string;
   page: string;
+  scoring: Scoring;
   "submission-cooldown": number;
   tasks: Task[];
   [k: string]: unknown;
@@ -48,7 +49,14 @@ export interface ResourceLimits {
   "memory-tolerance": number;
   [k: string]: unknown;
 }
+export interface Scoring {
+  "answer-score": number;
+  "subtask-score": number;
+  "test-score": number;
+  [k: string]: unknown;
+}
 export interface Task {
+  answer?: string | null;
   difficulty: Difficulty;
   name: string;
   page: string;

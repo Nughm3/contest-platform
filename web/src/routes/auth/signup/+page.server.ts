@@ -2,10 +2,16 @@ import { lucia } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { fail, redirect } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 import { generateIdFromEntropySize } from 'lucia';
 import { hash } from '@node-rs/argon2';
 
 import type { Actions } from './$types';
+
+function usernameAvailable(username: string): boolean {
+	const user = db.select().from(users).where(eq(users.username, username)).get();
+	return user === undefined;
+}
 
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
@@ -22,13 +28,22 @@ export const actions: Actions = {
 			!/^[a-zA-Z0-9_-]+$/.test(username)
 		) {
 			return fail(400, {
-				message:
-					'Invalid username: must be between 3 and 31 characters, only containing alphanumeric characters, hyphens and underscores'
+				username,
+				error:
+					'Invalid username: must be between 3 and 31 characters long, only containing alphanumeric characters, hyphens and underscores'
 			});
 		}
 		if (typeof password !== 'string' || password.length < 6 || password.length > 255) {
 			return fail(400, {
-				message: 'Invalid password: must be at least 6 characters'
+				username,
+				error: 'Invalid password: must be between 6 and 255 characters long'
+			});
+		}
+
+		if (!usernameAvailable(username)) {
+			return fail(409, {
+				username,
+				error: 'Username taken'
 			});
 		}
 
@@ -40,16 +55,11 @@ export const actions: Actions = {
 			parallelism: 1
 		});
 
-		try {
-			await db.insert(users).values({
-				id: userId,
-				username,
-				passwordHash
-			});
-		} catch (e) {
-			console.log(e);
-			return fail(409, { message: 'Username taken' });
-		}
+		await db.insert(users).values({
+			id: userId,
+			username,
+			passwordHash
+		});
 
 		const session = await lucia.createSession(userId, {});
 		const sessionCookie = lucia.createSessionCookie(session.id);

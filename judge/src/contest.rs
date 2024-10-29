@@ -13,6 +13,7 @@ pub struct Contest {
     pub submission_cooldown: u32,
     pub page: String,
     pub tasks: Vec<Task>,
+    pub scoring: Scoring,
     #[serde(rename = "judge")]
     pub config: Config,
 }
@@ -21,6 +22,7 @@ pub struct Contest {
 pub struct Task {
     pub name: String,
     pub difficulty: Difficulty,
+    pub answer: Option<String>,
     pub page: String,
     pub subtasks: Vec<Subtask>,
 }
@@ -41,6 +43,14 @@ pub struct Subtask {
 pub struct Test {
     pub input: String,
     pub output: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub struct Scoring {
+    pub answer_score: u32,
+    pub test_score: u32,
+    pub subtask_score: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, JsonSchema)]

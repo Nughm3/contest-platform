@@ -24,7 +24,7 @@ export const admins = sqliteTable('admins', {
 
 export const contests = sqliteTable('contests', {
 	id: integer('id').primaryKey(),
-	name: text('name').notNull().unique(),
+	slug: text('slug').notNull().unique(),
 	started: integer('started', { mode: 'timestamp' })
 		.notNull()
 		.default(sql`(unixepoch())`)
@@ -54,8 +54,9 @@ export const submissions = sqliteTable('submissions', {
 		.notNull()
 		.default(sql`(unixepoch())`),
 	task: integer('task').notNull(),
-	code: text('code').notNull(),
-	language: text('language').notNull(),
+	code: text('code'),
+	language: text('language'),
+	score: integer('score').notNull(),
 	verdict
 });
 

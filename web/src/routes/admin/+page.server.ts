@@ -18,9 +18,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	start: async ({ request }) => {
 		const formData = await request.formData();
-		const name = formData.get('contest')!.toString();
+		const slug = formData.get('contest')!.toString();
 		try {
-			await db.insert(contests).values({ name });
+			await db.insert(contests).values({ slug });
 		} catch (e) {
 			console.log(e);
 			return fail(500, { message: 'Failed to create contest' });

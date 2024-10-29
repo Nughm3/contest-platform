@@ -1,8 +1,8 @@
 import { db } from '$lib/server/db';
-import { admins } from '$lib/server/db/schema';
+import { admins, contests } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import type { LayoutServerLoad } from './$types';
 import { getContest } from '$lib/server/contest/load';
+import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals, params }) => {
 	let isAdmin = false;
@@ -14,11 +14,18 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 	let contest;
 	if (params.contest) {
 		const contestData = await getContest(params.contest);
-		if (contestData) {
+		const contestSession = db
+			.select()
+			.from(contests)
+			.where(eq(contests.slug, params.contest))
+			.get();
+		if (contestData && contestSession) {
 			contest = {
+				id: contestSession.id,
 				slug: params.contest,
 				name: contestData.name,
-				tasks: Array.from(contestData.tasks.map((task) => task.name))
+				tasks: Array.from(contestData.tasks.map((task) => task.name)),
+				started: contestSession.started
 			};
 		}
 	}

@@ -7,6 +7,7 @@
     "judge",
     "name",
     "page",
+    "scoring",
     "submission-cooldown",
     "tasks"
   ],
@@ -24,6 +25,9 @@
     },
     "page": {
       "type": "string"
+    },
+    "scoring": {
+      "$ref": "#/definitions/Scoring"
     },
     "submission-cooldown": {
       "type": "integer",
@@ -135,6 +139,31 @@
         }
       }
     },
+    "Scoring": {
+      "type": "object",
+      "required": [
+        "answer-score",
+        "subtask-score",
+        "test-score"
+      ],
+      "properties": {
+        "answer-score": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "subtask-score": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "test-score": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      }
+    },
     "Subtask": {
       "type": "object",
       "required": [
@@ -158,6 +187,12 @@
         "subtasks"
       ],
       "properties": {
+        "answer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "difficulty": {
           "$ref": "#/definitions/Difficulty"
         },
