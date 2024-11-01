@@ -35,9 +35,9 @@ pub struct TestReport {
 pub enum Verdict {
     CompileError,
     RuntimeError,
-    MemoryLimitExceeded,
-    TimeLimitExceeded,
     WrongAnswer,
+    TimeLimitExceeded,
+    MemoryLimitExceeded,
     Skipped,
     Accepted,
 }

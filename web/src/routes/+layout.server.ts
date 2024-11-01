@@ -25,7 +25,8 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 				slug: params.contest,
 				name: contestData.name,
 				tasks: Array.from(contestData.tasks.map((task) => task.name)),
-				started: contestSession.started
+				started: contestSession.started,
+				duration: contestData.duration
 			};
 		}
 	}

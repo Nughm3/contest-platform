@@ -241,9 +241,9 @@
       "enum": [
         "CompileError",
         "RuntimeError",
-        "MemoryLimitExceeded",
-        "TimeLimitExceeded",
         "WrongAnswer",
+        "TimeLimitExceeded",
+        "MemoryLimitExceeded",
         "Skipped",
         "Accepted"
       ]

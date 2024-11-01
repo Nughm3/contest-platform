@@ -168,84 +168,88 @@
 		</Helper>
 	{/if}
 
-	{#if compileExitCode}
-		<Helper color="red" class="text-md mb-2">
-			Compiler output (exited with code <strong>{compileExitCode}</strong>)
-		</Helper>
-		<div class="prose mb-2 max-w-full">
-			<pre><code>{compileStderr}</code></pre>
-		</div>
-	{/if}
-
-	{#if !loading}
-		{#if data.answerSubmission}
-			<form method="POST" action="?/submitAnswer" class="mb-6">
-				<div
-					class="flex flex-col space-y-6 md:flex-row md:items-end md:justify-between md:space-x-6 md:space-y-0"
-				>
-					<div class="grow">
-						<Label for="answer" class="mb-2">Answer</Label>
-						<Input
-							type="text"
-							name="answer"
-							id="answer"
-							placeholder="Enter your answer..."
-							required
-						/>
-					</div>
-					{#if timeLeft === 0}
-						<Button type="submit">Submit</Button>
-					{:else}
-						<Button type="submit" disabled>{timeLeft}s</Button>
-					{/if}
-				</div>
-
-				{#if form?.verdict}
-					{form.verdict}
-				{/if}
-			</form>
-		{:else}
-			<form {onsubmit} bind:this={formElement} class="mb-6">
-				<div
-					class="flex flex-col space-y-6 md:flex-row md:items-end md:justify-between md:space-x-6 md:space-y-0"
-				>
-					<div class="flex-auto">
-						<Label for="code" class="mb-2">Upload code</Label>
-						<Fileupload name="code" id="code" required class="h-[40px]" />
-					</div>
-
-					<div class="flex-auto">
-						<Label for="language" class="mb-2">Language</Label>
-						<Select
-							name="language"
-							id="language"
-							placeholder="Select language..."
-							required
-							class="h-[40px]"
-						>
-							{#each data.languages as language}
-								<option>{language}</option>
-							{/each}
-						</Select>
-					</div>
-
-					{#if timeLeft === 0}
-						<Button type="submit">Submit</Button>
-					{:else}
-						<Button type="submit" disabled>{timeLeft}s</Button>
-					{/if}
-				</div>
-			</form>
+	{#if new Date().getTime() - data.contest!.started.getTime() <= data.contest!.duration * 3600}
+		{#if compileExitCode}
+			<Helper color="red" class="text-md mb-2">
+				Compiler output (exited with code <strong>{compileExitCode}</strong>)
+			</Helper>
+			<div class="prose mb-2 max-w-full">
+				<pre><code>{compileStderr}</code></pre>
+			</div>
 		{/if}
-	{:else if status}
-		<div class="mb-2 flex items-center justify-between">
-			<span class="font-medium"><Spinner size="4" /> {status}</span>
-			{#if lastVerdict}
-				<Verdict verdict={lastVerdict} />
-			{/if}
-		</div>
 
-		<Progressbar progress={(progress / tests!) * 100} animate />
+		{#if !loading}
+			{#if data.answerSubmission}
+				<form method="POST" action="?/submitAnswer" class="mb-6">
+					<div
+						class="flex flex-col space-y-6 md:flex-row md:items-end md:justify-between md:space-x-6 md:space-y-0"
+					>
+						<div class="grow">
+							<Label for="answer" class="mb-2">Answer</Label>
+							<Input
+								type="text"
+								name="answer"
+								id="answer"
+								placeholder="Enter your answer..."
+								required
+							/>
+						</div>
+						{#if timeLeft === 0}
+							<Button type="submit">Submit</Button>
+						{:else}
+							<Button type="submit" disabled>{timeLeft}s</Button>
+						{/if}
+					</div>
+
+					{#if form?.verdict}
+						{form.verdict}
+					{/if}
+				</form>
+			{:else}
+				<form {onsubmit} bind:this={formElement} class="mb-6">
+					<div
+						class="flex flex-col space-y-6 md:flex-row md:items-end md:justify-between md:space-x-6 md:space-y-0"
+					>
+						<div class="flex-auto">
+							<Label for="code" class="mb-2">Upload code</Label>
+							<Fileupload name="code" id="code" required class="h-[40px]" />
+						</div>
+
+						<div class="flex-auto">
+							<Label for="language" class="mb-2">Language</Label>
+							<Select
+								name="language"
+								id="language"
+								placeholder="Select language..."
+								required
+								class="h-[40px]"
+							>
+								{#each data.languages as language}
+									<option>{language}</option>
+								{/each}
+							</Select>
+						</div>
+
+						{#if timeLeft === 0}
+							<Button type="submit">Submit</Button>
+						{:else}
+							<Button type="submit" disabled>{timeLeft}s</Button>
+						{/if}
+					</div>
+				</form>
+			{/if}
+		{:else if status}
+			<div class="mb-2 flex items-center justify-between">
+				<span class="font-medium"><Spinner size="4" /> {status}</span>
+				{#if lastVerdict}
+					<Verdict verdict={lastVerdict} />
+				{/if}
+			</div>
+
+			<Progressbar progress={(progress / tests!) * 100} animate />
+		{/if}
+	{:else}
+		<Helper class="text-md">This contest has now concluded. View your results below!</Helper>
 	{/if}
 </section>
 
@@ -258,15 +262,15 @@
 		<Table>
 			<TableHead>
 				<TableHeadCell>Time</TableHeadCell>
-				<TableHeadCell>Score</TableHeadCell>
 				<TableHeadCell>Verdict</TableHeadCell>
+				<TableHeadCell>Score</TableHeadCell>
 			</TableHead>
 			<TableBody>
 				{#each submissions as submission}
 					<TableBodyRow>
 						<TableBodyCell>{submission.timestamp.toLocaleString()}</TableBodyCell>
-						<TableBodyCell>{submission.score}</TableBodyCell>
 						<TableBodyCell><Verdict verdict={submission.verdict} /></TableBodyCell>
+						<TableBodyCell>{submission.score}</TableBodyCell>
 					</TableBodyRow>
 				{/each}
 			</TableBody>

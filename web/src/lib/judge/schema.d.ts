@@ -44,9 +44,9 @@ export type Message =
 export type Verdict =
   | "CompileError"
   | "RuntimeError"
-  | "MemoryLimitExceeded"
-  | "TimeLimitExceeded"
   | "WrongAnswer"
+  | "TimeLimitExceeded"
+  | "MemoryLimitExceeded"
   | "Skipped"
   | "Accepted";
 
