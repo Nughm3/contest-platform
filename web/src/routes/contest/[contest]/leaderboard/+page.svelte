@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { Heading } from 'flowbite-svelte';
+	import {
+		Heading,
+		Table,
+		TableBody,
+		TableBodyCell,
+		TableBodyRow,
+		TableHead,
+		TableHeadCell
+	} from 'flowbite-svelte';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -11,8 +19,19 @@
 
 <Heading tag="h2" class="mb-6">Leaderboard</Heading>
 
-<ol class="ml-8 list-decimal">
-	{#each data.leaderboard as entry}
-		<li>{entry.username}: {entry.totalScore}</li>
-	{/each}
-</ol>
+<Table>
+	<TableHead>
+		<TableHeadCell>Rank</TableHeadCell>
+		<TableHeadCell>Player</TableHeadCell>
+		<TableHeadCell>Score</TableHeadCell>
+	</TableHead>
+	<TableBody>
+		{#each data.leaderboard as entry, i}
+			<TableBodyRow>
+				<TableBodyCell><strong>{i + 1}</strong></TableBodyCell>
+				<TableBodyCell>{entry.username}</TableBodyCell>
+				<TableBodyCell>{entry.totalScore}</TableBodyCell>
+			</TableBodyRow>
+		{/each}
+	</TableBody>
+</Table>

@@ -263,14 +263,14 @@
 			<TableHead>
 				<TableHeadCell>Time</TableHeadCell>
 				<TableHeadCell>Verdict</TableHeadCell>
-				<TableHeadCell>Score</TableHeadCell>
+				<!-- <TableHeadCell>Score</TableHeadCell> -->
 			</TableHead>
 			<TableBody>
 				{#each submissions as submission}
 					<TableBodyRow>
 						<TableBodyCell>{submission.timestamp.toLocaleString()}</TableBodyCell>
 						<TableBodyCell><Verdict verdict={submission.verdict} /></TableBodyCell>
-						<TableBodyCell>{submission.score}</TableBodyCell>
+						<!-- <TableBodyCell>{submission.score}</TableBodyCell> -->
 					</TableBodyRow>
 				{/each}
 			</TableBody>

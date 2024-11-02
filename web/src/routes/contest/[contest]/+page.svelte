@@ -16,7 +16,8 @@
 	<div class="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
 		<Heading tag="h2" class="my-0">{data.contest!.name}</Heading>
 		<a href={'/contest/' + data.contest!.slug + '/leaderboard'}>
-			<Button><Trophy size="20" class="mr-2 inline-block" /> Leaderboard</Button>
+			<Button color="alternative"><Trophy size="20" class="mr-2 inline-block" /> Leaderboard</Button
+			>
 		</a>
 	</div>
 

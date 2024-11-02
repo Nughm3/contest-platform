@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Heading } from 'flowbite-svelte';
+	import {
+		Heading,
+		Button,
+		Table,
+		TableBody,
+		TableBodyCell,
+		TableBodyRow,
+		TableHead,
+		TableHeadCell
+	} from 'flowbite-svelte';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -13,25 +22,25 @@
 <Heading tag="h2" class="mb-6">Admin</Heading>
 
 <section id="contests">
-	<table class="mx-auto">
-		<thead>
-			<tr>
-				<th scope="col">Name</th>
-				<th scope="col">Action</th>
-			</tr>
-		</thead>
-		<tbody>
+	<Table>
+		<TableHead>
+			<TableHeadCell>Name</TableHeadCell>
+			<TableHeadCell>Action</TableHeadCell>
+		</TableHead>
+		<TableBody>
 			{#each data.contests as [slug, contest]}
-				<tr>
-					<th scope="row"><a href={'/contest/' + slug}>{contest.name}</a></th>
-					<td>
+				<TableBodyRow>
+					<TableBodyCell
+						><a href={'/contest/' + slug} class="underline">{contest.name}</a></TableBodyCell
+					>
+					<TableBodyCell>
 						<form method="POST" action="?/start" use:enhance>
 							<input type="hidden" id="contest" name="contest" value={slug} />
-							<button>Start</button>
+							<Button type="submit">Start</Button>
 						</form>
-					</td>
-				</tr>
+					</TableBodyCell>
+				</TableBodyRow>
 			{/each}
-		</tbody>
-	</table>
+		</TableBody>
+	</Table>
 </section>
