@@ -66,7 +66,7 @@
 		});
 
 		if (!response.ok) {
-			judgeError = await response.text();
+			judgeError = await response.json().then((e) => e.message);
 			return;
 		}
 
@@ -168,7 +168,7 @@
 		</Helper>
 	{/if}
 
-	{#if new Date().getTime() - data.contest!.started.getTime() <= data.contest!.duration * 3600}
+	{#if new Date().getTime() - data.contest!.started.getTime() <= data.contest!.duration * 1000}
 		{#if compileExitCode}
 			<Helper color="red" class="text-md mb-2">
 				Compiler output (exited with code <strong>{compileExitCode}</strong>)

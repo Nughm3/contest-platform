@@ -1,5 +1,5 @@
 import { getContests } from '$lib/server/contest/load';
-import {db} from '$lib/server/db';
+import { db } from '$lib/server/db';
 import { contests } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 
@@ -8,13 +8,15 @@ export const load: PageServerLoad = async () => {
 	const contestSessions = await db.select().from(contests);
 
 	return {
-		contests: contestSessions.map(contest => {
-            const data = contestData.get(contest.slug)!;
-            return {
-            	name: data.name,
-            	slug: contest.slug,
-            	started: contest.started,
-            }
-        })
+		contests: contestSessions.map((contest) => {
+			const data = contestData.get(contest.slug)!;
+			const active = new Date().getTime() <= contest.started.getTime() + data.duration * 1000;
+			return {
+				name: data.name,
+				slug: contest.slug,
+				started: contest.started,
+				active
+			};
+		})
 	};
 };

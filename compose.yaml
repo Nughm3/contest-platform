@@ -5,8 +5,8 @@ services:
     build: 
       context: judge
       target: final
-    ports:
-      - 8128:8128
+    expose:
+      - "8128"
     volumes:
       - type: bind
         source: ./data

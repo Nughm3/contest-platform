@@ -30,14 +30,20 @@
 		<TableBody>
 			{#each data.contests as [slug, contest]}
 				<TableBodyRow>
-					<TableBodyCell
-						><a href={'/contest/' + slug} class="underline">{contest.name}</a></TableBodyCell
-					>
 					<TableBodyCell>
-						<form method="POST" action="?/start" use:enhance>
-							<input type="hidden" id="contest" name="contest" value={slug} />
-							<Button type="submit">Start</Button>
-						</form>
+						<a href={'/contest/' + slug} class="underline">{contest.name}</a>
+					</TableBodyCell>
+					<TableBodyCell>
+						<div class="flex space-x-4">
+							<form method="POST" action="?/startContest" use:enhance>
+								<input type="hidden" id="contest" name="contest" value={slug} />
+								<Button type="submit">Start</Button>
+							</form>
+							<form method="POST" action="?/removeContest" use:enhance>
+								<input type="hidden" id="contest" name="contest" value={slug} />
+								<Button type="submit" color="red">Remove</Button>
+							</form>
+						</div>
 					</TableBodyCell>
 				</TableBodyRow>
 			{/each}

@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { redirect, error, fail } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { admins, contests } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -16,14 +16,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	start: async ({ request }) => {
+	startContest: async ({ request }) => {
 		const formData = await request.formData();
 		const slug = formData.get('contest')!.toString();
-		try {
-			await db.insert(contests).values({ slug });
-		} catch (e) {
-			console.log(e);
-			return fail(500, { message: 'Failed to create contest' });
-		}
+		await db.insert(contests).values({ slug });
+	},
+
+	removeContest: async ({ request }) => {
+		const formData = await request.formData();
+		const slug = formData.get('contest')!.toString();
+		await db.delete(contests).where(eq(contests.slug, slug));
 	}
 };

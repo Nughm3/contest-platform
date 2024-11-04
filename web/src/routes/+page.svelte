@@ -31,20 +31,32 @@
 
 <section id="contests">
 	<Heading tag="h3" class="mb-6">Contests</Heading>
-	<Table>
-		<TableHead>
-			<TableHeadCell>Contest</TableHeadCell>
-			<TableHeadCell>Time started</TableHeadCell>
-		</TableHead>
-		<TableBody>
-			{#each data.contests as contest}
-				<TableBodyRow>
-					<TableBodyCell>
-						<a href={'/contest/' + contest.slug} class="underline">{contest.name}</a>
-					</TableBodyCell>
-					<TableBodyCell>{contest.started.toLocaleString()}</TableBodyCell>
-				</TableBodyRow>
-			{/each}
-		</TableBody>
-	</Table>
+	{#if data.contests.length !== 0}
+		<Table>
+			<TableHead>
+				<TableHeadCell>Contest</TableHeadCell>
+				<TableHeadCell>Started</TableHeadCell>
+				<TableHeadCell>Status</TableHeadCell>
+			</TableHead>
+			<TableBody>
+				{#each data.contests as contest}
+					<TableBodyRow>
+						<TableBodyCell>
+							<a href={'/contest/' + contest.slug} class="underline">{contest.name}</a>
+						</TableBodyCell>
+						<TableBodyCell>{contest.started.toLocaleString()}</TableBodyCell>
+						<TableBodyCell>
+							{#if contest.active}
+								<span class="text-green-700">Active</span>
+							{:else}
+								<span class="text-red-700">Ended</span>
+							{/if}
+						</TableBodyCell>
+					</TableBodyRow>
+				{/each}
+			</TableBody>
+		</Table>
+	{:else}
+		<p class="text-sm"><em>No contests yet</em></p>
+	{/if}
 </section>

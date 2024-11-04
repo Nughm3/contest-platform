@@ -10,7 +10,9 @@ export async function getContests() {
 		contestData = new Map();
 		for (const filename of await fs.readdir(env.CONTEST_DATA)) {
 			const name = path.parse(filename).name;
-			const contents = await fs.readFile(path.join(env.CONTEST_DATA, filename), { encoding: 'utf8' });
+			const contents = await fs.readFile(path.join(env.CONTEST_DATA, filename), {
+				encoding: 'utf8'
+			});
 			let contest: Contest = JSON.parse(contents);
 			contest.tasks.map((task) => (task.subtasks = []));
 			contestData.set(name, contest);

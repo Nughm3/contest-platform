@@ -11,20 +11,19 @@ export const POST: RequestHandler = async ({ fetch, request, params, locals }) =
 	if (!locals.user) error(401);
 
 	const contestData = await getContest(params.contest);
-	if (!contestData) error(500, { message: 'contest does not exist' });
+	if (!contestData) error(404, 'contest does not exist');
 
-	const contest = db
-		.select({ id: contests.id })
-		.from(contests)
-		.where(eq(contests.slug, params.contest))
-		.get();
-	if (!contest) error(500, { message: 'contest not started' });
+	const contest = db.select().from(contests).where(eq(contests.slug, params.contest)).get();
+	if (!contest) error(404, 'contest not started');
+
+	if (new Date().getTime() > contest.started.getTime() + contestData.duration * 1000)
+		error(404, 'contest ended');
 
 	const formData = await request.formData();
 	formData.set('contest', params.contest);
 	formData.set('task', params.task);
 
-	const response = await fetch('http://localhost:8128', {
+	const response = await fetch('http://judge:8128', {
 		method: 'POST',
 		body: formData
 	});
