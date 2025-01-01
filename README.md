@@ -4,7 +4,7 @@ This is a coding contest platform for competitive programming, originally built 
 
 ## Demonstration video
 
-![Contest platform demonstration video](/docs/contest-platform.mp4 "Contest platform demonstration video")
+https://github.com/user-attachments/assets/ed2f45ef-9eb2-4f11-9aa3-516ff564b81f
 
 ## Technical overview
 
